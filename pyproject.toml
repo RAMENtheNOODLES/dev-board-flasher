@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dev-board-flasher"
+version = "0.0.1"
+description = "A short description of my project"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Carter Rommelfanger", email = "carter.rommelfanger@generac.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+	"pyside6>=6.11.1",
+	"esptool>=5.3.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,9 @@
+board_name = "Seeed Studio Xiao ESP32C6"
+
+[board_settings]
+flasher = "esp32" # for now
+baud_rate = 115200
+type = "espidf"
+part_id = "undef"
+
+supported_files = ["*.hex", "*.bin"]
