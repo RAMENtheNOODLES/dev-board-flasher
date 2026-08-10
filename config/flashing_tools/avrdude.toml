@@ -1,5 +1,6 @@
 # This is what gets used in the "flasher" setting in a board configuration
 tool_name = "avrdude"
+tool_loc = ""
 
 [tool_settings]
 # Can be CLI or PYTHON

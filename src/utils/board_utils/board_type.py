@@ -7,6 +7,7 @@ class BoardType(Enum):
 	UNKNOWN = 0
 	ARDUINO = 1
 	ESPIDF = 2
+	CUSTOM = 3
 
 
 def get_board_type(board_type: str) -> BoardType:

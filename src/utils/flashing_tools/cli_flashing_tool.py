@@ -37,12 +37,13 @@ class CLIFlashingTool(BaseFlashingTool):
 
 		boards: list[str] = self.config_data["tool_settings"]["supported_boards"]
 		self.supported_board_types = []
+		self.tool_loc = self.config_data["tool_loc"]
 		from ..board_utils.board_type import get_board_type
 		for boardtype in boards:
 			self.supported_board_types.append(get_board_type(boardtype))
 			
 
-	def flash(self, board: BoardConfig, port: str, file: str) -> None:
+	def flash(self, board: BoardConfig, port: str, file: str) -> bool:
 		"""Substitutes template variables into the configured args and runs the CLI.
 
 		Supported substitution variables (referenced as ``$name`` in the
@@ -74,6 +75,6 @@ class CLIFlashingTool(BaseFlashingTool):
 		print(f"Unparsed arguments: {args}")
 		print(f"Using these arguments for cli: {parsedArgs}")
 
-		self.process.start(self.name, parsedArgs)
+		self.process.start(self.tool_loc if (self.tool_loc != "") else self.name, parsedArgs)
 
-		
+		return True

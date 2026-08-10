@@ -15,22 +15,30 @@ class FlasherFinder:
 
 	tools: dict[str, BaseFlashingTool]
 
-	def __init__(self) -> None:
+	def __init__(self, ext_path: str = "") -> None:
 		"""Discovers flashing tool configuration files and builds tool instances."""
-		self.tools = self.parse_tools(self.get_tools())
+		self.ext_path = ext_path if (ext_path != "") else None
+		self.tools = self.parse_tools(self.get_tools(self.ext_path))
 
 	@staticmethod
-	def get_tools() -> list[str]:
+	def get_tools(ext_path: str|None = None) -> list[str]:
 		"""Retrieves flashing tool configuration files from the config path.
 
 		Returns:
 			list[str]: Paths to all TOML files found in the
 				``config/flashing_tools`` folder.
 		"""
+		tool_confs: list[str] = []
+
+		if (ext_path is not None):
+			ext_dir = Path(ext_path).resolve()
+			print(f"get_tools(), ext dir: {ext_dir}")
+			tool_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
+		
 		current_dir = Path(__file__).resolve().parent
 		config_path = current_dir.parent.parent.parent / "Config" / "flashing_tools"
 
-		tool_confs: list[str] = [str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")]
+		tool_confs.extend([str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")])
 
 		print(f"tool confs: {tool_confs}")
 

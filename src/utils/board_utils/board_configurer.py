@@ -15,14 +15,16 @@ class BoardConfigurer:
 
 	_board_cache: list[BoardConfig] = []
 
-	def __init__(self):
+	def __init__(self, ext_tool_path: str = "", ext_board_path: str = ""):
 		"""Initializes the configurer and builds the initial board cache."""
+		self.ext_tool_path = ext_tool_path if (ext_tool_path != "") else ""
+		self.ext_board_path = ext_board_path if (ext_board_path != "") else None
 		self.refresh_cache()
 
 	def refresh_cache(self):
 		"""Rebuilds the board cache from the board configuration files on disk."""
-		boards = self.get_boards()
-		self._board_cache = [self.read_board_config(board) for board in boards]
+		boards = self.get_boards(self.ext_board_path)
+		self._board_cache = [self.read_board_config(board, self.ext_tool_path) for board in boards]
 
 	def get_board_cache(self) -> list[BoardConfig]:
 		"""Returns the cached list of parsed board configurations.
@@ -34,22 +36,29 @@ class BoardConfigurer:
 		return self._board_cache
 
 	@staticmethod
-	def get_boards() -> list[str]:
+	def get_boards(ext_path: str|None = None) -> list[str]:
 		"""Retrieves board configuration files from the config path
 
 		Returns:
 			list[str]: A list of all files found in the config/boards folder
 		"""
 
+		board_confs: list[str] = []
+
+		if (ext_path is not None):
+			ext_dir = Path(ext_path).resolve()
+			print(f"get_boards(), Ext dir: {ext_dir}")
+			board_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
+
 		current_dir = Path(__file__).resolve().parent
 		config_path = current_dir.parent.parent.parent / "Config" / "boards"
 
-		board_confs: list[str] = [str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")]
+		board_confs.extend([str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")])
 
 		return board_confs
 
 	@staticmethod
-	def read_board_config(conf_file: str) -> BoardConfig:
+	def read_board_config(conf_file: str, ext_tools: str = "") -> BoardConfig:
 		"""Parses a single board configuration TOML file into a BoardConfig.
 
 		Resolves the board's part ID, board type, and flashing tool
@@ -80,7 +89,7 @@ class BoardConfigurer:
 
 		board_type = get_board_type(config_data["board_settings"]["type"])
 
-		ff = FlasherFinder()
+		ff = FlasherFinder(ext_tools)
 
 		flashing_tool = ff.get_flashing_tool(config_data["board_settings"]["flasher"], board_type)
 

@@ -1,8 +1,12 @@
+import gc
 import sys
-from PySide6.QtCore import QIODevice, QTextStream, QEvent
+from PySide6.QtCore import QIODevice, QTextStream, QEvent, QSettings, QCoreApplication
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFileDialog
 from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase
+
+import tomllib
+from pathlib import Path
 
 from utils.board_utils import BoardConfigurer
 
@@ -11,6 +15,7 @@ from ui_main_window import Ui_MainWindow
 
 import fonts_rc
 
+EXIT_CODE_RESTART = -523904
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	"""Main application window for the dev board flasher.
@@ -33,6 +38,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		super().__init__()
 		self.setupUi(self) # Binds the primary main window layout
 
+		QCoreApplication.setOrganizationDomain("CookieJAR")
+		QCoreApplication.setApplicationName("wizlog")
+
 		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
 
 		if font_id != -1:
@@ -45,7 +53,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		else:
 			print("Error: Could not load font from resources.")
 
-		self.configurer = BoardConfigurer()
+		settings = QSettings()
+
+		ext_boards = settings.value("ext_boards", "", type=str)
+		print(f"Ext Boards Dir: {ext_boards}")
+		ext_tools = settings.value("ext_tools", "", type=str)
+		print(f"Ext Tools Dir: {ext_tools}")
+
+		self.configurer = BoardConfigurer(str(ext_tools), str(ext_boards))
 		self.file_name = ""
 		self.serial = QSerialPort()
 
@@ -63,14 +78,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.serialMonitorButton.clicked.connect(self.toggle_connection)
 		self.serial.readyRead.connect(self.read_serial_data)
 		self.clearLogsButton.clicked.connect(lambda: self.logText.clear())
-		self.logText.clear()
-
 		self.sendTXDataButton.clicked.connect(self.send_serial_data)
 		self.serialTXBox.returnPressed.connect(self.send_serial_data)
 		self.serial.errorOccurred.connect(self.handle_serial_error)
 
+		self.actionAdd_External_Board_Directory.triggered.connect(self.browse_board_folder)
+		self.actionAdd_External_Flashing_Tool.triggered.connect(self.browse_tool_folder)
+
+		self.logText.clear()
+		self.logText.setFontPointSize(8)
 		self.check_can_upload()
 
+		# Update version label
+		current_dir = Path(__file__).resolve().parent
+		config_path = current_dir.parent / "pyproject.toml"
+		with open(config_path, "rb") as f:
+			config = tomllib.load(f)
+			ver = config["project"]["version"]
+			self.versionLabel.setText(f"v{ver}")
+		
 	def update_selected_board(self):
 		"""Updates the currently selected board from the board select dropdown.
 
@@ -95,6 +121,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if event.type() == QEvent.Type.Resize:
 			self.vignette.resize(self.size())
 			self.vignette.move(0, 0)
+			self.containerWidget.resize(self.centralWidget().size())
 			self.actualWidget.resize(self.centralWidget().size())
 		return super().eventFilter(watched, event)
 
@@ -143,11 +170,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		Updates the file name label and re-evaluates whether the upload
 		button should be enabled based on the selection.
 		"""
+		board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
+
+		allowed_files = ""
+		for file in board.SupportedFiles:
+			allowed_files += file + " "
+
+		allowed_files = allowed_files.rstrip()
+
 		self.file_name, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
 			"",
-			"Binary Files (*.bin *.hex);; All Files (*)"
+			f"Binary Files ({allowed_files});; All Files (*)"
 		)
 
 		if self.file_name:
@@ -156,6 +191,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			print(f"File ready for upload: {self.file_name}")
 
 		self.check_can_upload()
+
+	def browse_tool_folder(self):
+		settings = QSettings()
+		ext_tool = QFileDialog.getExistingDirectory(
+			self,
+			"Open External Flashing Tool Folder",
+			dir=str(settings.value("ext_tools", ".", type=str)),
+		)
+
+		if ext_tool:
+			settings.setValue("ext_tools", ext_tool)
+			QApplication.exit(EXIT_CODE_RESTART)
+
+	def browse_board_folder(self):
+		settings = QSettings()
+		ext_tool = QFileDialog.getExistingDirectory(
+			self,
+			"Open External Boards Folder",
+			dir=str(settings.value("ext_boards", ".", type=str)),
+		)
+
+		if ext_tool:
+			settings.setValue("ext_boards", ext_tool)
+			QApplication.exit(EXIT_CODE_RESTART)
 
 	def check_can_upload(self) -> bool:
 		"""Determines whether an upload can currently be started.
@@ -167,7 +226,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		Returns:
 			bool: True if an upload can be started, False otherwise.
 		"""
-		if ((self.serialPortsBox.currentText() == "") or (self.fileName.text() == "") or (self.serial.isOpen())):
+		if ((self.fileName.text() == "") or (self.serial.isOpen())):
 			self.uploadBoardButton.setEnabled(False)
 			return False
 		else:
@@ -273,9 +332,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			print(f"Error: {error}")
 			self.toggle_connection()
 
-
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
-	window = MainWindow()
-	window.show()
-	sys.exit(app.exec())
+
+	while True:
+		window = MainWindow()
+		window.show()
+
+		exit_code = app.exec()
+
+		window.close()
+		del window
+		gc.collect()
+
+		if exit_code != EXIT_CODE_RESTART:
+			sys.exit(exit_code)
+
+		print("Reloading Application...")
