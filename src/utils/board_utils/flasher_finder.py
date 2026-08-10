@@ -36,7 +36,12 @@ class FlasherFinder:
 			tool_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
 		
 		current_dir = Path(__file__).resolve().parent
-		config_path = current_dir.parent.parent.parent / "Config" / "flashing_tools"
+		if "__compiled__" in globals():
+			# Nuitka onefile build: the extraction root corresponds directly to
+			# the "src" directory (no extra "src" nesting level like in source runs).
+			config_path = current_dir.parent.parent / "config" / "flashing_tools"
+		else:
+			config_path = current_dir.parent.parent.parent / "config" / "flashing_tools"
 
 		tool_confs.extend([str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")])
 

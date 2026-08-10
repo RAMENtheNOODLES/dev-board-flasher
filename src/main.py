@@ -1,9 +1,11 @@
 import gc
 import sys
+import ctypes
+import os
 from PySide6.QtCore import QIODevice, QTextStream, QEvent, QSettings, QCoreApplication
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFileDialog
 from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
-from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase
+from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon
 
 import tomllib
 from pathlib import Path
@@ -53,6 +55,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		else:
 			print("Error: Could not load font from resources.")
 
+		# Set icon
+		self.setWindowIcon(QIcon(":/logo.png"))
+
 		settings = QSettings()
 
 		ext_boards = settings.value("ext_boards", "", type=str)
@@ -64,7 +69,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.file_name = ""
 		self.serial = QSerialPort()
 
-		self.boardSelect.addItems([board_name.BoardName for board_name in self.configurer.get_board_cache()])
+		self.boardSelect.addItems([board_name.BoardName for board_name in self.configurer.get_board_cache() if board_name is not None])
 
 		self.refresh_serial_ports()
 
@@ -90,8 +95,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.check_can_upload()
 
 		# Update version label
+		#todo: Fix this for compilation
 		current_dir = Path(__file__).resolve().parent
-		config_path = current_dir.parent / "pyproject.toml"
+		if "__compiled__" in globals():
+			# Nuitka onefile build: the extraction root corresponds directly to
+			# the "src" directory (no extra "src" nesting level like in source runs).
+			config_path = current_dir / "pyproject.toml"
+		else:
+			config_path =  current_dir.parent / "pyproject.toml"
+
 		with open(config_path, "rb") as f:
 			config = tomllib.load(f)
 			ver = config["project"]["version"]
@@ -173,8 +185,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
 
 		allowed_files = ""
-		for file in board.SupportedFiles:
-			allowed_files += file + " "
+		if board is not None:
+			for file in board.SupportedFiles:
+				allowed_files += file + " "
 
 		allowed_files = allowed_files.rstrip()
 
@@ -245,11 +258,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
 
-		board.Flasher.set_log_box(self.logText)
+		if board is not None:
+			board.Flasher.set_log_box(self.logText)
 
-		self.uploadBoardButton.setEnabled(False)
-		board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name)
-		self.uploadBoardButton.setEnabled(True)
+			self.uploadBoardButton.setEnabled(False)
+			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name)
+			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):
 		"""Opens or closes the connection depending on current state."""
@@ -336,6 +350,9 @@ if __name__ == "__main__":
 	app = QApplication(sys.argv)
 
 	while True:
+		if os.name == 'nt':
+			appid = 'cookiejar.uploadwiz.0.0.1-alpha' # Custom unique string
+			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
 		window = MainWindow()
 		window.show()
 

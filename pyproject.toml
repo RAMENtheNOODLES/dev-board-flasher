@@ -16,12 +16,15 @@ classifiers = [
 ]
 dependencies = [
 	"pyside6>=6.11.1",
-	"esptool>=5.3.1"
+	"esptool>=5.3.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+	"Nuitka>=4.1.3",
+	"ImageIO>=2.37.4",
+	"zstandard>=0.25.0"
 ]
 
 [tool.ruff]
@@ -29,3 +32,26 @@ line-length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyside6-project]
+files = [
+    "assets/fonts.qrc",
+    "assets/images.qrc",
+    "src/main.py",
+    "src/utils/board_utils/__init__.py",
+    "src/utils/board_utils/board_config.py",
+    "src/utils/board_utils/board_configurer.py",
+    "src/utils/board_utils/board_part_id.py",
+    "src/utils/board_utils/board_type.py",
+    "src/utils/board_utils/flasher_finder.py",
+    "src/utils/custom_exceptions/__init__.py",
+    "src/utils/custom_exceptions/unknown_flasher_type.py",
+    "src/utils/custom_exceptions/unknown_part_id.py",
+    "src/utils/custom_exceptions/unsupported_board_type.py",
+    "src/utils/flashing_tools/__init__.py",
+    "src/utils/flashing_tools/base_flashing_tool.py",
+    "src/utils/flashing_tools/cli_flashing_tool.py",
+    "src/utils/flashing_tools/esp32.py",
+    "src/vignette_overlay.py",
+    "ui/main_window.ui",
+]

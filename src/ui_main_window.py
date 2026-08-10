@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
 
 from vignette_overlay import VignetteOverlay
 import fonts_rc
+import images_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):

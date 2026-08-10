@@ -13,7 +13,7 @@ class BoardConfigurer:
 	"""Finds and configures boards automatically
 	"""
 
-	_board_cache: list[BoardConfig] = []
+	_board_cache: list[BoardConfig|None] = []
 
 	def __init__(self, ext_tool_path: str = "", ext_board_path: str = ""):
 		"""Initializes the configurer and builds the initial board cache."""
@@ -26,7 +26,7 @@ class BoardConfigurer:
 		boards = self.get_boards(self.ext_board_path)
 		self._board_cache = [self.read_board_config(board, self.ext_tool_path) for board in boards]
 
-	def get_board_cache(self) -> list[BoardConfig]:
+	def get_board_cache(self) -> list[BoardConfig|None]:
 		"""Returns the cached list of parsed board configurations.
 
 		Returns:
@@ -51,14 +51,19 @@ class BoardConfigurer:
 			board_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
 
 		current_dir = Path(__file__).resolve().parent
-		config_path = current_dir.parent.parent.parent / "Config" / "boards"
+		if "__compiled__" in globals():
+			# Nuitka onefile build: the extraction root corresponds directly to
+			# the "src" directory (no extra "src" nesting level like in source runs).
+			config_path = current_dir.parent.parent / "config" / "boards"
+		else:
+			config_path = current_dir.parent.parent.parent / "config" / "boards"
 
 		board_confs.extend([str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")])
 
 		return board_confs
 
 	@staticmethod
-	def read_board_config(conf_file: str, ext_tools: str = "") -> BoardConfig:
+	def read_board_config(conf_file: str, ext_tools: str = "") -> BoardConfig|None:
 		"""Parses a single board configuration TOML file into a BoardConfig.
 
 		Resolves the board's part ID, board type, and flashing tool
@@ -78,8 +83,11 @@ class BoardConfigurer:
 			UnsupportedBoardType: If the resolved flashing tool does not
 				support the board's type.
 		"""
-		with open(conf_file, "rb") as f:
-			config_data = tomllib.load(f)
+		try:
+			with open(conf_file, "rb") as f:
+				config_data = tomllib.load(f)
+		except FileNotFoundError:
+			return None
 
 		print(f"Got config data: {config_data}")
 

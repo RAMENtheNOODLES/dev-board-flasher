@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Carter Rommelfanger</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -282,6 +283,7 @@
  </customwidgets>
  <resources>
   <include location="../assets/fonts.qrc"/>
+  <include location="../assets/images.qrc"/>
  </resources>
  <connections/>
 </ui>
