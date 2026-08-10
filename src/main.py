@@ -13,7 +13,23 @@ import fonts_rc
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+	"""Main application window for the dev board flasher.
+
+	Wires together the generated Qt UI, the board configuration cache, and
+	the serial port/monitor controls, and handles drag-and-drop of firmware
+	files onto the window.
+
+	Attributes:
+		configurer (BoardConfigurer): Discovers and caches available board
+			configurations.
+		file_name (str): Path to the firmware file currently selected for
+			upload.
+		serial (QSerialPort): Serial port used for flashing and the serial
+			monitor.
+	"""
+
 	def __init__(self):
+		"""Initializes the main window, loads UI resources, and wires up signals."""
 		super().__init__()
 		self.setupUi(self) # Binds the primary main window layout
 
@@ -53,10 +69,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.serialTXBox.returnPressed.connect(self.send_serial_data)
 		self.serial.errorOccurred.connect(self.handle_serial_error)
 
+		self.check_can_upload()
+
 	def update_selected_board(self):
+		"""Updates the currently selected board from the board select dropdown.
+
+		Reads the current index of ``boardSelect`` and stores the matching
+		:class:`BoardConfig` on ``self.selected_board``, then re-evaluates
+		whether the upload button should be enabled.
+		"""
 		self.selected_board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
+		self.check_can_upload()
 
 	def eventFilter(self, watched, event):
+		"""Handles window resize events to keep overlay widgets in sync.
+
+		Args:
+			watched: The object being watched by this event filter.
+			event (QEvent): The event to process.
+
+		Returns:
+			bool: The result of the base class's event filter handling.
+		"""
 		# When the window scales, resize the overlay to fill the screen
 		if event.type() == QEvent.Type.Resize:
 			self.vignette.resize(self.size())
@@ -65,14 +99,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		return super().eventFilter(watched, event)
 
 	def dragEnterEvent(self, event: QDragEnterEvent):
+		"""Shows the drop-target overlay when a file is dragged over the window.
+
+		Args:
+			event (QDragEnterEvent): The drag-enter event containing the
+				dragged mime data.
+		"""
 		if event.mimeData().hasUrls():
 			event.acceptProposedAction()
 			self.vignette.show()
 
 	def dragLeaveEvent(self, event: QDragLeaveEvent):
+		"""Hides the drop-target overlay when a drag leaves the window.
+
+		Args:
+			event (QDragLeaveEvent): The drag-leave event.
+		"""
 		self.vignette.hide()
 
 	def dropEvent(self, event: QDropEvent):
+		"""Handles a file being dropped onto the window.
+
+		Selects the first dropped file as the firmware file to upload and
+		updates the UI to reflect the new selection.
+
+		Args:
+			event (QDropEvent): The drop event containing the dropped mime
+				data.
+		"""
 		self.vignette.hide()
 		if event.mimeData().hasUrls():
 			files = [url.toLocalFile() for url in event.mimeData().urls()]
@@ -81,8 +135,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.file_name = files[0]
 
 			self.fileName.setText(self.file_name)
+			self.check_can_upload()
 
 	def browse_files(self):
+		"""Opens a file picker dialog for selecting a firmware file to upload.
+
+		Updates the file name label and re-evaluates whether the upload
+		button should be enabled based on the selection.
+		"""
 		self.file_name, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
@@ -95,7 +155,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 			print(f"File ready for upload: {self.file_name}")
 
+		self.check_can_upload()
+
+	def check_can_upload(self) -> bool:
+		"""Determines whether an upload can currently be started.
+
+		Upload is disabled when no serial port is selected, no file has
+		been chosen, or the serial monitor connection is open. Updates the
+		enabled state of the upload button as a side effect.
+
+		Returns:
+			bool: True if an upload can be started, False otherwise.
+		"""
+		if ((self.serialPortsBox.currentText() == "") or (self.fileName.text() == "") or (self.serial.isOpen())):
+			self.uploadBoardButton.setEnabled(False)
+			return False
+		else:
+			self.uploadBoardButton.setEnabled(True)
+			return True
+
 	def upload_to_board(self):
+		"""Flashes the selected firmware file to the currently selected board.
+
+		Resolves the board's flashing tool from the cache, points it at the
+		shared log box, and invokes its flash routine on the chosen serial
+		port and file. No-op if uploading is not currently allowed.
+		"""
+		if (not self.check_can_upload()):
+			return
+
 		board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
 
 		board.Flasher.set_log_box(self.logText)
@@ -153,6 +241,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.logText.append("--- Cannot Send: Port is closed ---")
 
 	def refresh_serial_ports(self):
+		"""Repopulates the serial port dropdown with currently available ports."""
 		ports = QSerialPortInfo.availablePorts()
 
 		self.serialPortsBox.clear()
@@ -165,6 +254,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			print("-" * 20)
 
 	def handle_serial_error(self, error: QSerialPort.SerialPortError):
+		"""Reacts to errors reported by the serial port connection.
+
+		Disconnects the serial monitor when the device is unplugged or an
+		unexpected error occurs; ignores benign "not open"/"no error"
+		states.
+
+		Args:
+			error (QSerialPort.SerialPortError): The error reported by the
+				serial port.
+		"""
 		if error == QSerialPort.SerialPortError.ResourceError:
 			print("Device was disconnected...")
 			self.toggle_connection()

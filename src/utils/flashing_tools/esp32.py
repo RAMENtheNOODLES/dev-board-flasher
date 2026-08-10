@@ -15,16 +15,30 @@ import subprocess
 
 
 class ESP32(BaseFlashingTool):
+	"""Flashing tool that programs ESP-IDF boards using esptool.
+
+	Unlike the CLI-based tools, this drives the ``esptool`` Python API
+	directly rather than spawning a subprocess.
+	"""
+
 	name = "esp32"
 	supported_file_types: list[str] = ["*.hex", "*.bin"]
 
 	def __init__(self) -> None:
+		"""Initializes the tool, restricting it to ESP-IDF boards."""
 		super().__init__()
 
 		from ..board_utils import BoardType, BoardConfig
 		self.supported_board_types = [BoardType.ESPIDF]
 
 	def flash(self, board: BoardConfig, port: str, file: str) -> None:
+		"""Detects the connected chip and flashes ``file`` onto it.
+
+		Args:
+			board (BoardConfig): The board being flashed.
+			port (str): Serial port the board is connected to.
+			file (str): Path to the firmware file to flash.
+		"""
 		super()
 
 		args = [

@@ -1,0 +1,12 @@
+# This is what gets used in the "flasher" setting in a board configuration
+tool_name = "example flashing tool"
+
+[tool_settings]
+# Can be CLI or PYTHON
+type = "cli"
+# The supported board types. See board_type.py for available options
+supported_boards = ["ARDUINO", "ESPIDF"]
+# Supported file types
+supported_file_types = ["*.hex", "*.bin"]
+# CLI Arguments see the AVRDude implementation for more details
+args = []
