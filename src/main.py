@@ -2,18 +2,32 @@ import sys
 from PySide6.QtCore import QIODevice, QTextStream, QEvent
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFileDialog
 from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
-from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent
+from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase
 
 from utils.board_utils import BoardConfigurer
 
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 
+import fonts_rc
+
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 	def __init__(self):
 		super().__init__()
 		self.setupUi(self) # Binds the primary main window layout
+
+		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
+
+		if font_id != -1:
+			# 4. Extract the exact internal font family name
+			font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+
+			# 5. Create a font object and apply it globally to the app
+			global_font = QFont(font_family, 12)  # Family name and default size
+			self.setFont(global_font)
+		else:
+			print("Error: Could not load font from resources.")
 
 		self.configurer = BoardConfigurer()
 		self.file_name = ""
