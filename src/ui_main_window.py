@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
     QWidget)
 
 from vignette_overlay import VignetteOverlay
+import fonts_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -35,14 +36,16 @@ class Ui_MainWindow(object):
         self.containerWidget = QFrame(self.centralwidget)
         self.containerWidget.setObjectName(u"containerWidget")
         self.containerWidget.setGeometry(QRect(9, 9, 925, 664))
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.containerWidget.sizePolicy().hasHeightForWidth())
+        self.containerWidget.setSizePolicy(sizePolicy)
         self.containerWidget.setFrameShape(QFrame.Shape.StyledPanel)
         self.containerWidget.setFrameShadow(QFrame.Shadow.Raised)
         self.actualWidget = QWidget(self.containerWidget)
         self.actualWidget.setObjectName(u"actualWidget")
         self.actualWidget.setGeometry(QRect(1, 1, 523, 402))
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.actualWidget.sizePolicy().hasHeightForWidth())
         self.actualWidget.setSizePolicy(sizePolicy)
         self.gridLayout_2 = QGridLayout(self.actualWidget)
@@ -60,6 +63,9 @@ class Ui_MainWindow(object):
 
         self.logText = QTextEdit(self.actualWidget)
         self.logText.setObjectName(u"logText")
+        font = QFont()
+        font.setFamilies([u"FiraCode Nerd Font"])
+        self.logText.setFont(font)
         self.logText.setReadOnly(True)
 
         self.gridLayout_2.addWidget(self.logText, 3, 1, 1, 1)
@@ -136,6 +142,7 @@ class Ui_MainWindow(object):
 
         self.serialTXBox = QLineEdit(self.actualWidget)
         self.serialTXBox.setObjectName(u"serialTXBox")
+        self.serialTXBox.setFont(font)
 
         self.gridLayout_2.addWidget(self.serialTXBox, 7, 1, 1, 1)
 

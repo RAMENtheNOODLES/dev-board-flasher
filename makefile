@@ -8,15 +8,16 @@ RCC      = pyside6-rcc
 
 # Directories
 UI_DIR   = ui
+QRC_DIR  = assets
 SRC_DIR  = src
 
 # Find all separate .ui component files
 UI_FILES  := $(wildcard $(UI_DIR)/*.ui)
-QRC_FILES := $(wildcard *.qrc)
+QRC_FILES := $(wildcard $(QRC_DIR)/*.qrc)
 
 # Map UI source views to compiled Python modules
 PY_UI_FILES  := $(patsubst $(UI_DIR)/%.ui,$(SRC_DIR)/ui_%.py,$(UI_FILES))
-PY_R_FILES   := $(patsubst %.qrc,$(SRC_DIR)/%_rc.py,$(QRC_FILES))
+PY_R_FILES   := $(patsubst $(QRC_DIR)/%.qrc,$(SRC_DIR)/%_rc.py,$(QRC_FILES))
 
 # Main executable script
 MAIN_APP = $(SRC_DIR)/main.py
@@ -34,7 +35,7 @@ $(SRC_DIR)/ui_%.py: $(UI_DIR)/%.ui
 	@mkdir -p $(SRC_DIR)
 	$(UIC) $< -o $@
 
-$(SRC_DIR)/%_rc.py: %.qrc
+$(SRC_DIR)/%_rc.py: $(QRC_DIR)/%.qrc
 	@mkdir -p $(SRC_DIR)
 	$(RCC) $< -o $@
 

@@ -23,6 +23,12 @@
       <height>664</height>
      </rect>
     </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
     <property name="frameShape">
      <enum>QFrame::Shape::StyledPanel</enum>
     </property>
@@ -73,6 +79,11 @@
       </item>
       <item row="3" column="1">
        <widget class="QTextEdit" name="logText">
+        <property name="font">
+         <font>
+          <family>FiraCode Nerd Font</family>
+         </font>
+        </property>
         <property name="readOnly">
          <bool>true</bool>
         </property>
@@ -179,6 +190,11 @@
       </item>
       <item row="7" column="1">
        <widget class="QLineEdit" name="serialTXBox">
+        <property name="font">
+         <font>
+          <family>FiraCode Nerd Font</family>
+         </font>
+        </property>
         <property name="placeholderText">
          <string>Type data to send here...</string>
         </property>
@@ -242,6 +258,8 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../assets/fonts.qrc"/>
+ </resources>
  <connections/>
 </ui>
