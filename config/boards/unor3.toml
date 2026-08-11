@@ -1,0 +1,9 @@
+board_name = "Arduino UNO R3"
+
+[board_settings]
+flasher = "avrdude"
+baud_rate = 115200
+type = "arduino"
+part_id = "atmega328p"
+
+supported_files = ["*.hex", "*.bin"]

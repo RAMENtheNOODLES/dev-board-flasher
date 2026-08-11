@@ -1,0 +1,9 @@
+board_name = "ESP32DEV"
+
+[board_settings]
+flasher = "avrdude"
+baud_rate = 115200
+type = "arduino"
+part_id = "undef"
+
+supported_files = ["*.bin"]
