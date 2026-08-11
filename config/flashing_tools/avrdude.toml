@@ -9,9 +9,21 @@ type = "cli"
 supported_boards = ["ARDUINO"]
 # Supported file types
 supported_file_types = ["*.hex", "*.bin"]
-# CLI Arguments see the AVRDude implementation for more details
-args = [
+
+[tool_settings.custom_settings]
+# CLI Arguments
+default = [
 	"-c", "arduino",
+	"-p", "$partid", 	# Variables can be used by prepending a $ to them, similar to powershell scripts
+	"-P", "$port",		# See the how to use variables section in the readme for more info.
+	"-b", "$baudrate",
+	"-D",
+	"-U", "flash:w:$file:i"
+]
+
+dry_run = [
+	"-c", "arduino",
+	"-n", 				# no-write
 	"-p", "$partid", 	# Variables can be used by prepending a $ to them, similar to powershell scripts
 	"-P", "$port",		# See the how to use variables section in the readme for more info.
 	"-b", "$baudrate",

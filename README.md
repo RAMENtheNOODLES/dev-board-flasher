@@ -40,11 +40,13 @@ Flashing tools are declared as TOML files in `config/flashing_tools/`. See `conf
 | `tool_settings.type` | Either `cli` (runs an external command) or `python` (uses a built-in implementation, e.g. `esp32`). |
 | `tool_settings.supported_boards` | List of board types this tool can flash. See `BoardType` for available options. |
 | `tool_settings.supported_file_types` | Glob patterns of firmware files this tool accepts. |
-| `tool_settings.args` | CLI-only. List of command-line arguments passed to the tool, in order. |
+| `tool_settings.custom_settings` | CLI-only. A table of one or more named settings presets, each a list of command-line arguments passed to the tool, in order. |
+
+Each key under `tool_settings.custom_settings` (e.g. `default`, `dry_run`) defines a separate argument list for that tool. All of a board's flasher's preset names are shown in the app's settings dropdown next to the upload button; the one selected there is passed as the `settings` argument to `flash()` and determines which argument list is used. A `default` preset is used if none is explicitly selected. See `config/flashing_tools/avrdude.toml`, which defines both a `default` preset and a `dry_run` preset that adds AVRDude's `-n` (no-write) flag.
 
 ### How to use variables
 
-`cli`-type tools can reference values from the board being flashed inside their `args` list by prepending a `$` to a variable name, similar to PowerShell string expansion (e.g. `"-p", "$partid"`). Variables are substituted at flash time before the command is run. See `config/flashing_tools/avrdude.toml` for an example.
+`cli`-type tools can reference values from the board being flashed inside a `custom_settings` preset's argument list by prepending a `$` to a variable name, similar to PowerShell string expansion (e.g. `"-p", "$partid"`). Variables are substituted at flash time before the command is run. See `config/flashing_tools/avrdude.toml` for an example.
 
 #### Available Variables
 

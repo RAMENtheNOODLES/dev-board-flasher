@@ -40,12 +40,17 @@ class BaseFlashingTool:
 			command.
 		log_box (QTextEdit): Text widget that flashing output is streamed
 			to. Set via :meth:`set_log_box` before calling :meth:`flash`.
+		custom_settings (dict[str, list[str]]): Named presets of tool-specific
+			settings (e.g. ``default``, ``dry_run``), keyed by the name shown
+			in the settings dropdown. Populated from ``tool_settings.custom_settings``
+			by subclasses that support multiple presets. See :meth:`get_settings`.
 	"""
 
 	name = "Base"
 	supported_board_types: list[BoardType] = []
 	supported_file_types: list[str] = []
 	tool_loc: str = ""
+	custom_settings: dict[str, list[str]] = {}
 
 	def __init__(self) -> None:
 		"""Sets up the underlying QProcess and connects its signals."""
@@ -69,7 +74,7 @@ class BaseFlashingTool:
 		self.log_box.clear()
 		self.log_box.append("Starting process...\n")
 
-	def flash(self, board: BoardConfig, port: str, file: str) -> bool:
+	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
 		"""Flashes ``file`` onto ``board`` over ``port``.
 
 		Subclasses must override this to start the actual flashing process.
@@ -79,6 +84,8 @@ class BaseFlashingTool:
 			board (BoardConfig): The board being flashed.
 			port (str): Serial port the board is connected to.
 			file (str): Path to the firmware file to flash.
+			settings (str): Name of the settings preset (a key of
+				``custom_settings``) to flash with. Defaults to ``"default"``.
 		"""
 		self.flash_preamble()
 
@@ -252,6 +259,16 @@ class BaseFlashingTool:
 			self.log_box.append("\n[PROCESS COMPLETED SUCCESSFULLY]")
 		else:
 			self.log_box.append(f"\n[PROCESS FAILED WITH EXIT CODE {exit_code}]")
+
+	def get_settings(self) -> list[str]:
+		"""Returns the names of the available settings presets.
+
+		Returns:
+			list[str]: Keys of ``custom_settings``, suitable for populating
+				the settings dropdown and passing as the ``settings``
+				argument to :meth:`flash`.
+		"""
+		return list(self.custom_settings.keys())
 
 	
 	
