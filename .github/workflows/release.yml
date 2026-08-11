@@ -64,7 +64,11 @@ jobs:
 
       - name: Package build output
         shell: pwsh
-        run: Compress-Archive -Path build\* -DestinationPath "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip"
+        run: |
+          if (-not (Test-Path "build") -or (Get-ChildItem "build" -Force | Measure-Object).Count -eq 0) {
+            throw "build\ is missing or empty after 'make compile' - nothing to package."
+          }
+          Compress-Archive -Path build\* -DestinationPath "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" -ErrorAction Stop
 
       - name: Create GitHub release
         shell: pwsh
