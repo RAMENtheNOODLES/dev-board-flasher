@@ -95,7 +95,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.check_can_upload()
 
 		# Update version label
-		#todo: Fix this for compilation
+		# pyproject.toml is bundled as a data file via --include-data-files in
+		# pysidedeploy.spec so it's present next to main.py in both source and
+		# compiled (Nuitka onefile) runs.
 		current_dir = Path(__file__).resolve().parent
 		if "__compiled__" in globals():
 			# Nuitka onefile build: the extraction root corresponds directly to
@@ -206,6 +208,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.check_can_upload()
 
 	def browse_tool_folder(self):
+		"""Opens a folder picker for selecting an external flashing tool directory.
+
+		Persists the chosen folder to ``QSettings`` under ``ext_tools`` and
+		restarts the app (via :data:`EXIT_CODE_RESTART`) so the new folder's
+		TOML files are picked up by :class:`BoardConfigurer`. No-op if the
+		dialog is cancelled.
+		"""
 		settings = QSettings()
 		ext_tool = QFileDialog.getExistingDirectory(
 			self,
@@ -218,6 +227,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			QApplication.exit(EXIT_CODE_RESTART)
 
 	def browse_board_folder(self):
+		"""Opens a folder picker for selecting an external board directory.
+
+		Persists the chosen folder to ``QSettings`` under ``ext_boards`` and
+		restarts the app (via :data:`EXIT_CODE_RESTART`) so the new folder's
+		TOML files are picked up by :class:`BoardConfigurer`. No-op if the
+		dialog is cancelled.
+		"""
 		settings = QSettings()
 		ext_tool = QFileDialog.getExistingDirectory(
 			self,

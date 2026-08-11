@@ -16,7 +16,14 @@ class FlasherFinder:
 	tools: dict[str, BaseFlashingTool]
 
 	def __init__(self, ext_path: str = "") -> None:
-		"""Discovers flashing tool configuration files and builds tool instances."""
+		"""Discovers flashing tool configuration files and builds tool instances.
+
+		Args:
+			ext_path (str, optional): Path to an external directory of
+				flashing tool TOML files, loaded in addition to
+				``config/flashing_tools``. Defaults to "" (no external
+				directory).
+		"""
 		self.ext_path = ext_path if (ext_path != "") else None
 		self.tools = self.parse_tools(self.get_tools(self.ext_path))
 

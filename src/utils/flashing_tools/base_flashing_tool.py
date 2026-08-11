@@ -126,7 +126,13 @@ class BaseFlashingTool:
 		self._ansi_format = QTextCharFormat()
 
 	def _apply_sgr(self, params: str) -> None:
-		"""Updates ``self._ansi_format`` per an ANSI SGR escape's parameters."""
+		"""Updates ``self._ansi_format`` per an ANSI SGR escape's parameters.
+
+		Args:
+			params (str): The semicolon-separated numeric parameters of an
+				SGR escape sequence (the text between ``\\x1b[`` and the
+				trailing ``m``), e.g. ``"1;32"``.
+		"""
 		codes = [int(p) for p in params.split(";") if p] or [0]
 		for code in codes:
 			if code == 0:
@@ -151,6 +157,12 @@ class BaseFlashingTool:
 		line, so a literal insert would flood the log with dozens of stale
 		lines. This mimics terminal behavior by erasing back to the start
 		of the current line whenever a carriage return is seen.
+
+		Args:
+			cursor (QTextCursor): Cursor positioned in the log box where
+				``chunk`` should be inserted.
+			chunk (str): Text to insert, potentially containing ``\\r``
+				line-overwrite characters but no CSI escape sequences.
 		"""
 		if not chunk:
 			return
@@ -205,6 +217,11 @@ class BaseFlashingTool:
 		return len(text)
 
 	def flush(self) -> None:
+		"""No-op flush to satisfy the file-like ``write``/``flush`` protocol.
+
+		:meth:`write` renders text into the log box immediately, so there is
+		no buffered data to flush.
+		"""
 		pass
 
 	def read_terminal_stream(self):

@@ -68,7 +68,7 @@ macos.permissions =
 mode = onefile
 
 # specify any extra nuitka arguments
-extra_args = --quiet --noinclude-qt-translations --include-data-dir=config=config
+extra_args = --quiet --noinclude-qt-translations --windows-console-mode=disable --include-data-dir=config=config --include-data-files=pyproject.toml=pyproject.toml
 
 [buildozer]
 

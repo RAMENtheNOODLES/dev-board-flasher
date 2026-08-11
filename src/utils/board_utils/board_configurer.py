@@ -16,7 +16,17 @@ class BoardConfigurer:
 	_board_cache: list[BoardConfig|None] = []
 
 	def __init__(self, ext_tool_path: str = "", ext_board_path: str = ""):
-		"""Initializes the configurer and builds the initial board cache."""
+		"""Initializes the configurer and builds the initial board cache.
+
+		Args:
+			ext_tool_path (str, optional): Path to an external directory of
+				flashing tool TOML files, loaded in addition to
+				``config/flashing_tools``. Defaults to "" (no external
+				directory).
+			ext_board_path (str, optional): Path to an external directory of
+				board TOML files, loaded in addition to ``config/boards``.
+				Defaults to "" (no external directory).
+		"""
 		self.ext_tool_path = ext_tool_path if (ext_tool_path != "") else ""
 		self.ext_board_path = ext_board_path if (ext_board_path != "") else None
 		self.refresh_cache()
