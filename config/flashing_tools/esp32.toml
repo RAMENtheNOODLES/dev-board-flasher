@@ -1,0 +1,10 @@
+# This is what gets used in the "flasher" setting in a board configuration
+tool_name = "esp32"
+
+[tool_settings]
+# Can be CLI or PYTHON
+type = "PYTHON"
+# The supported board types. See board_type.py for available options
+supported_boards = ["ESPIDF"]
+# Supported file types
+supported_file_types = ["*.hex", "*.bin"]

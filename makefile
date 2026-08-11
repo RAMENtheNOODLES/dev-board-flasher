@@ -5,11 +5,14 @@ PYTHON   = python
 DESIGNER = pyside6-designer
 UIC      = pyside6-uic
 RCC      = pyside6-rcc
+DEPLOY   = pyside6-deploy
 
 # Directories
-UI_DIR   = ui
-QRC_DIR  = assets
-SRC_DIR  = src
+UI_DIR    = ui
+QRC_DIR   = assets
+SRC_DIR   = src
+BUILD_DIR = build
+SPEC_FILE = $(SRC_DIR)/pysidedeploy.spec
 
 # Find all separate .ui component files
 UI_FILES  := $(wildcard $(UI_DIR)/*.ui)
@@ -25,10 +28,10 @@ MAIN_APP = $(SRC_DIR)/main.py
 # --------------------------------------------------------------------
 # TARGET RULES
 # --------------------------------------------------------------------
-.PHONY: all ui rcc run design clean
+.PHONY: all ui rcc run design compile project-files clean
 
 # Default: Compiles all individual UI parts and assets
-all: ui rcc
+all: ui rcc project-files
 
 # Pattern rule: Compiles each component into its own ui_*.py file
 $(SRC_DIR)/ui_%.py: $(UI_DIR)/%.ui
@@ -45,6 +48,23 @@ rcc: $(PY_R_FILES)
 # Run the app (Automatically compiles any changed .ui components first)
 run: all
 	$(PYTHON) $(MAIN_APP)
+
+# --------------------------------------------------------------------
+# STANDALONE EXECUTABLE
+# --------------------------------------------------------------------
+# Compiles a standalone executable from the app (recompiles UI/assets first)
+# Output directory is controlled by exec_directory in src/pysidedeploy.spec
+compile: all
+	@mkdir -p $(BUILD_DIR)
+	$(DEPLOY) $(MAIN_APP) -c $(SPEC_FILE)
+
+# --------------------------------------------------------------------
+# PROJECT FILE LIST
+# --------------------------------------------------------------------
+# Regenerates the [tool.pyside6-project] files list in pyproject.toml
+# from the .py/.ui/.qrc files actually on disk.
+project-files:
+	$(PYTHON) scripts/sync_project_files.py
 
 # --------------------------------------------------------------------
 # WORKFLOW DESIGNER RULE

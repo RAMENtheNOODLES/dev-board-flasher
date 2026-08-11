@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Carter Rommelfanger</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -7,7 +8,7 @@
     <x>0</x>
     <y>0</y>
     <width>943</width>
-    <height>715</height>
+    <height>739</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -63,21 +64,7 @@
       <property name="bottomMargin">
        <number>27</number>
       </property>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="refreshCOMPortButton">
-        <property name="text">
-         <string>Refresh</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
-       <widget class="QPushButton" name="uploadButton">
-        <property name="text">
-         <string>Open File</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
+      <item row="4" column="1">
        <widget class="QTextEdit" name="logText">
         <property name="font">
          <font>
@@ -89,10 +76,56 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="boardSelect"/>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="serialPortsBox"/>
       </item>
-      <item row="5" column="2" colspan="2">
+      <item row="1" column="0">
+       <widget class="QLabel" name="boardSelectLabel">
+        <property name="text">
+         <string>Board Select</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1">
+       <widget class="QLabel" name="versionLabel">
+        <property name="text">
+         <string>Version 0.0.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="fileName"/>
+      </item>
+      <item row="7" column="3">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Baud Rate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="comLabel">
+        <property name="text">
+         <string>COM PORT</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="QLineEdit" name="serialTXBox">
+        <property name="font">
+         <font>
+          <family>FiraCode Nerd Font</family>
+         </font>
+        </property>
+        <property name="placeholderText">
+         <string>Type data to send here...</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="2" colspan="2">
        <widget class="QLabel" name="label_2">
         <property name="text">
          <string>Serial Connection Settings</string>
@@ -102,31 +135,49 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QPushButton" name="uploadBoardButton">
+      <item row="3" column="2">
+       <widget class="QPushButton" name="uploadButton">
         <property name="text">
-         <string>Upload to Board</string>
+         <string>Open File</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="serialPortsBox"/>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="comLabel">
+      <item row="8" column="3">
+       <widget class="QPushButton" name="serialMonitorButton">
         <property name="text">
-         <string>COM PORT</string>
+         <string>Connect</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>Logs</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="2">
+      <item row="8" column="2">
+       <widget class="QPushButton" name="sendTXDataButton">
+        <property name="text">
+         <string>Send Data</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QPushButton" name="uploadBoardButton">
+        <property name="text">
+         <string>Upload to Board</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="2">
+       <widget class="QPushButton" name="clearLogsButton">
+        <property name="text">
+         <string>Clear Logs</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="2">
        <widget class="QComboBox" name="baudRateBox">
         <item>
          <property name="text">
@@ -150,60 +201,30 @@
         </item>
        </widget>
       </item>
-      <item row="6" column="3">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Baud Rate</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="2">
-       <widget class="QPushButton" name="sendTXDataButton">
-        <property name="text">
-         <string>Send Data</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="fileName"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="boardSelectLabel">
-        <property name="text">
-         <string>Board Select</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
          <string>Serial TX</string>
         </property>
        </widget>
       </item>
-      <item row="7" column="3">
-       <widget class="QPushButton" name="serialMonitorButton">
+      <item row="1" column="1">
+       <widget class="QComboBox" name="boardSelect"/>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="refreshCOMPortButton">
         <property name="text">
-         <string>Connect</string>
+         <string>Refresh</string>
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
-       <widget class="QLineEdit" name="serialTXBox">
-        <property name="font">
-         <font>
-          <family>FiraCode Nerd Font</family>
-         </font>
-        </property>
-        <property name="placeholderText">
-         <string>Type data to send here...</string>
-        </property>
-       </widget>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="flashToolSettings"/>
       </item>
-      <item row="3" column="2">
-       <widget class="QPushButton" name="clearLogsButton">
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>Clear Logs</string>
+         <string>Flash Tool Settings</string>
         </property>
        </widget>
       </item>
@@ -240,6 +261,8 @@
     <property name="title">
      <string>Edit</string>
     </property>
+    <addaction name="actionAdd_External_Flashing_Tool"/>
+    <addaction name="actionAdd_External_Board_Directory"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -247,6 +270,16 @@
   <action name="actionOpen_File">
    <property name="text">
     <string>Open</string>
+   </property>
+  </action>
+  <action name="actionAdd_External_Flashing_Tool">
+   <property name="text">
+    <string>Add External &amp;Flashing Tool Directory</string>
+   </property>
+  </action>
+  <action name="actionAdd_External_Board_Directory">
+   <property name="text">
+    <string>Add External &amp;Board Directory</string>
    </property>
   </action>
  </widget>
@@ -260,6 +293,7 @@
  </customwidgets>
  <resources>
   <include location="../assets/fonts.qrc"/>
+  <include location="../assets/images.qrc"/>
  </resources>
  <connections/>
 </ui>
