@@ -1,0 +1,81 @@
+name: Release on merge to main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Read version from pyproject.toml
+        id: version
+        shell: pwsh
+        run: |
+          $version = python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          $tag = "v$version"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Fail if release already exists
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ steps.version.outputs.tag }}" *>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Error "Release ${{ steps.version.outputs.tag }} already exists. Bump the version in pyproject.toml before merging to main."
+            exit 1
+          }
+          exit 0
+
+      - name: Install make
+        shell: pwsh
+        run: choco install make --no-progress -y
+
+      - name: Create virtual environment and install project
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\python.exe -m pip install -e ".[dev]"
+
+      - name: Point pysidedeploy.spec at the CI virtual environment
+        shell: pwsh
+        run: |
+          $venvPython = (Resolve-Path ".venv\Scripts\python.exe").Path
+          (Get-Content src/pysidedeploy.spec) -replace '^python_path\s*=.*', "python_path = $venvPython" |
+            Set-Content src/pysidedeploy.spec
+
+      - name: Add virtual environment to PATH
+        shell: pwsh
+        run: echo (Resolve-Path ".venv\Scripts").Path | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: make compile
+        shell: bash
+        run: make compile
+
+      - name: Package build output
+        shell: pwsh
+        run: Compress-Archive -Path build\* -DestinationPath "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip"
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" `
+            "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" `
+            --title "${{ steps.version.outputs.tag }}" `
+            --generate-notes
