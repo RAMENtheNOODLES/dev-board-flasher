@@ -10,5 +10,7 @@ type = "cli"
 supported_boards = ["ARDUINO", "ESPIDF"]
 # Supported file types
 supported_file_types = ["*.hex", "*.bin"]
+
+[tool_settings.custom_settings]
 # CLI Arguments see the AVRDude implementation for more details
-args = []
+default = []

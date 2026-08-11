@@ -31,13 +31,17 @@ class ESP32(BaseFlashingTool):
 		from ..board_utils import BoardType, BoardConfig
 		self.supported_board_types = [BoardType.ESPIDF]
 
-	def flash(self, board: BoardConfig, port: str, file: str) -> bool:
+	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
 		"""Detects the connected chip and flashes ``file`` onto it.
 
 		Args:
 			board (BoardConfig): The board being flashed.
 			port (str): Serial port the board is connected to.
 			file (str): Path to the firmware file to flash.
+			settings (str): Unused by this tool; accepted for interface
+				compatibility with :meth:`BaseFlashingTool.flash`, since
+				esptool is driven directly rather than via configurable CLI
+				args.
 		"""
 		super()
 
