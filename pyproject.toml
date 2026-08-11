@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -37,6 +37,7 @@ testpaths = ["tests"]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/deployment/main.build/scons-debug.py",
     "src/main.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",

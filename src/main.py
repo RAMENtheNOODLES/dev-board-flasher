@@ -75,7 +75,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.vignette.raise_()
 		self.installEventFilter(self)
-		
+
+		self.boardSelect.currentIndexChanged.connect(self.update_selected_board)
 		self.uploadButton.clicked.connect(self.browse_files)
 		self.actionOpen_File.triggered.connect(self.browse_files)
 		self.uploadBoardButton.clicked.connect(self.upload_to_board)
@@ -93,6 +94,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logText.clear()
 		self.logText.setFontPointSize(8)
 		self.check_can_upload()
+		self.update_selected_board()
 
 		# Update version label
 		# pyproject.toml is bundled as a data file via --include-data-files in
@@ -115,10 +117,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		"""Updates the currently selected board from the board select dropdown.
 
 		Reads the current index of ``boardSelect`` and stores the matching
-		:class:`BoardConfig` on ``self.selected_board``, then re-evaluates
-		whether the upload button should be enabled.
+		:class:`BoardConfig` on ``self.selected_board``, repopulates
+		``flashToolSettings`` with the newly selected board's flasher's
+		available settings presets (from
+		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_settings`),
+		then re-evaluates whether the upload button should be enabled.
 		"""
 		self.selected_board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
+		self.flashToolSettings.clear()
+		if self.selected_board is not None:
+			settings = self.selected_board.Flasher.get_settings()
+			print(f"Updating board settings: {settings}")
+			self.flashToolSettings.addItems(settings)
 		self.check_can_upload()
 
 	def eventFilter(self, watched, event):
@@ -267,7 +277,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		Resolves the board's flashing tool from the cache, points it at the
 		shared log box, and invokes its flash routine on the chosen serial
-		port and file. No-op if uploading is not currently allowed.
+		port and file, using the settings preset chosen in
+		``flashToolSettings``. No-op if uploading is not currently allowed.
 		"""
 		if (not self.check_can_upload()):
 			return
@@ -278,7 +289,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			board.Flasher.set_log_box(self.logText)
 
 			self.uploadBoardButton.setEnabled(False)
-			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name)
+			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name, self.flashToolSettings.currentText())
 			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):
