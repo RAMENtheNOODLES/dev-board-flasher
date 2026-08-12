@@ -1,5 +1,7 @@
+#:schema /config/flashing_tool_schema.json
 # This is what gets used in the "flasher" setting in a board configuration
 tool_name = "esp32"
+tool_loc = ""
 
 [tool_settings]
 # Can be CLI or PYTHON
@@ -8,3 +10,18 @@ type = "PYTHON"
 supported_boards = ["ESPIDF"]
 # Supported file types
 supported_file_types = ["*.hex", "*.bin"]
+
+[tool_settings.progress_bar]
+# Settings relating to how the progress bar gets updated
+method = "regex"
+
+num_steps = 50
+# This is a list of values that increment the progress bar. It starts with the first item and each time it matches that 
+# item in the output terminal, it increments the progress bar and moves to the next item.
+# This will wrap around to the beginning once progressing to the 
+inc_step_on = [
+	"="
+]
+
+step_read_regex = '\d+(?=/)'
+step_final_regex = '(?<=/)\d+'

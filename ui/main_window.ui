@@ -64,20 +64,19 @@
       <property name="bottomMargin">
        <number>27</number>
       </property>
-      <item row="4" column="1">
-       <widget class="QTextEdit" name="logText">
-        <property name="font">
-         <font>
-          <family>FiraCode Nerd Font</family>
-         </font>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
+      <item row="9" column="3">
+       <widget class="QPushButton" name="serialMonitorButton">
+        <property name="text">
+         <string>Connect</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="serialPortsBox"/>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="refreshCOMPortButton">
+        <property name="text">
+         <string>Refresh</string>
+        </property>
+       </widget>
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="boardSelectLabel">
@@ -87,33 +86,6 @@
        </widget>
       </item>
       <item row="9" column="1">
-       <widget class="QLabel" name="versionLabel">
-        <property name="text">
-         <string>Version 0.0.0</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="fileName"/>
-      </item>
-      <item row="7" column="3">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Baud Rate</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="comLabel">
-        <property name="text">
-         <string>COM PORT</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
        <widget class="QLineEdit" name="serialTXBox">
         <property name="font">
          <font>
@@ -125,59 +97,21 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="2" colspan="2">
-       <widget class="QLabel" name="label_2">
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_5">
         <property name="text">
-         <string>Serial Connection Settings</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
+         <string>Flash Tool Settings</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="2">
-       <widget class="QPushButton" name="uploadButton">
-        <property name="text">
-         <string>Open File</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="3">
-       <widget class="QPushButton" name="serialMonitorButton">
-        <property name="text">
-         <string>Connect</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Logs</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="2">
+      <item row="9" column="2">
        <widget class="QPushButton" name="sendTXDataButton">
         <property name="text">
          <string>Send Data</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
-       <widget class="QPushButton" name="uploadBoardButton">
-        <property name="text">
-         <string>Upload to Board</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="2">
-       <widget class="QPushButton" name="clearLogsButton">
-        <property name="text">
-         <string>Clear Logs</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="2">
+      <item row="8" column="2">
        <widget class="QComboBox" name="baudRateBox">
         <item>
          <property name="text">
@@ -201,30 +135,103 @@
         </item>
        </widget>
       </item>
-      <item row="8" column="0">
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="fileName"/>
+      </item>
+      <item row="4" column="2">
+       <widget class="QPushButton" name="clearLogsButton">
+        <property name="text">
+         <string>Clear Logs</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
        <widget class="QLabel" name="label_4">
         <property name="text">
          <string>Serial TX</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="boardSelect"/>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="refreshCOMPortButton">
+      <item row="11" column="1">
+       <widget class="QLabel" name="versionLabel">
         <property name="text">
-         <string>Refresh</string>
+         <string>Version 0.0.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
         </property>
        </widget>
       </item>
       <item row="2" column="1">
        <widget class="QComboBox" name="flashToolSettings"/>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_5">
+      <item row="0" column="1">
+       <widget class="QComboBox" name="serialPortsBox"/>
+      </item>
+      <item row="6" column="2" colspan="2">
+       <widget class="QLabel" name="label_2">
         <property name="text">
-         <string>Flash Tool Settings</string>
+         <string>Serial Connection Settings</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QPushButton" name="uploadBoardButton">
+        <property name="text">
+         <string>Upload to Board</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="3">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Baud Rate</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="uploadButton">
+        <property name="text">
+         <string>Open File</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Logs</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="comLabel">
+        <property name="text">
+         <string>COM PORT</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="boardSelect"/>
+      </item>
+      <item row="4" column="1">
+       <widget class="QTextEdit" name="logText">
+        <property name="font">
+         <font>
+          <family>FiraCode Nerd Font</family>
+         </font>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>0</number>
         </property>
        </widget>
       </item>

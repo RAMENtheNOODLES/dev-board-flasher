@@ -3,6 +3,7 @@ from __future__ import annotations
 from . import BaseFlashingTool
 
 import esptool
+import tomllib
 
 from esptool.cmds import detect_chip, run_stub, write_flash, run
 
@@ -24,11 +25,21 @@ class ESP32(BaseFlashingTool):
 	name = "esp32"
 	supported_file_types: list[str] = ["*.hex", "*.bin"]
 
-	def __init__(self) -> None:
-		"""Initializes the tool, restricting it to ESP-IDF boards."""
-		super().__init__()
+	def __init__(self, config_file: str = "") -> None:
+		"""Initializes the tool, restricting it to ESP-IDF boards.
 
-		from ..board_utils import BoardType, BoardConfig
+		Unlike :class:`CLIFlashingTool`, esptool has no CLI arguments to
+		configure, so ``custom_settings`` (loaded by the base class along
+		with ``name``, ``supported_file_types``, and the progress-bar
+		settings) goes unused here.
+
+		Args:
+			config_file (str): Path to the tool's configuration TOML file.
+				Defaults to ``""``.
+		"""
+		super().__init__(config_file)
+
+		from ..board_utils import BoardType
 		self.supported_board_types = [BoardType.ESPIDF]
 
 	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
@@ -44,6 +55,8 @@ class ESP32(BaseFlashingTool):
 				args.
 		"""
 		super()
+		self.step_on = 0
+		self.p_bar.setValue(0)
 
 		self.reset_console_format()
 
@@ -57,7 +70,8 @@ class ESP32(BaseFlashingTool):
 
 					run(esp)
 
-		except:
+		except Exception as e:
+			self.logger.exception("Unknown exception")
 			return False
 		
 		return True

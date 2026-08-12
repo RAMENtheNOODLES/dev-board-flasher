@@ -294,6 +294,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		if board is not None:
 			board.Flasher.set_log_box(self.logText)
+			board.Flasher.set_progress_bar(self.progressBar)
 
 			self.uploadBoardButton.setEnabled(False)
 			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name, self.flashToolSettings.currentText())

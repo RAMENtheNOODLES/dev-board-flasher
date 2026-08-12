@@ -1,0 +1,98 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "object",
+	"title": "Flashing Tool",
+	"required": ["tool_name", "tool_settings"],
+	"additionalProperties": true,
+	"properties": {
+		"tool_name": {
+			"type": "string",
+			"description": "Name used in the \"flasher\" setting of a board configuration."
+		},
+		"tool_loc": {
+			"type": "string",
+			"description": "Path to the tool executable. Leave blank to assume the tool is on PATH. Required for CLI-type tools."
+		},
+		"tool_settings": {
+			"type": "object",
+			"required": ["type", "supported_boards", "supported_file_types"],
+			"additionalProperties": true,
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": ["cli", "CLI", "python", "PYTHON"],
+					"description": "Whether this tool is driven as an external CLI process or a built-in Python implementation."
+				},
+				"supported_boards": {
+					"type": "array",
+					"description": "Board types this tool can flash. See board_type.py for available options.",
+					"items": {
+						"type": "string",
+						"enum": ["UNKNOWN", "ARDUINO", "ESPIDF", "CUSTOM"]
+					}
+				},
+				"supported_file_types": {
+					"type": "array",
+					"description": "Glob patterns of firmware file types this tool accepts.",
+					"items": { "type": "string" }
+				},
+				"custom_settings": {
+					"type": "object",
+					"description": "Named presets of CLI arguments, keyed by the name shown in the settings dropdown. $variable substitution is supported (partid, port, baudrate, boardname, boardtype, file).",
+					"additionalProperties": {
+						"type": "array",
+						"items": { "type": "string" }
+					}
+				},
+				"progress_bar": {
+					"type": "object",
+					"description": "Settings relating to how the progress bar gets updated.",
+					"required": [ "method" ],
+					"additionalProperties": true,
+					"properties": {
+						"method": {
+							"type": "string",
+							"enum": [ "none", "step_array", "regex" ]
+						},
+						"num_steps": {
+							"type": "integer",
+							"minimum": 1,
+							"description": "Number of steps in the progress bar."
+						},
+						"inc_step_on": {
+							"type": "array",
+							"description": "Values that increment the progress bar. Starts with the first item; each time it matches in the output terminal, the bar advances and moves to the next item, wrapping around to the beginning.",
+							"items": { "type": "string" },
+							"minItems": 1
+						},
+						"regex_method": {
+							"type": "string",
+							"description": "Which regex strategy \"regex\" mode uses: \"normal\" reads a current/total step count via step_read_regex/step_final_regex, \"hex\" reads hex memory addresses via initial_address/final_address/next_address. Defaults to \"normal\".",
+							"enum": [ "normal", "hex" ]
+						},
+						"step_read_regex": {
+							"type": "string",
+							"description": "regex_method \"normal\" only. A regex expression that looks for a percentage or x out of y expression to update the progress bar"
+						},
+						"step_final_regex": {
+							"type": "string",
+							"description": "regex_method \"normal\" only. A regex expression that looks for the final amount of items to determine a step size"
+						},
+						"initial_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the starting hex address of the flash range in the tool's output."
+						},
+						"final_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the ending hex address of the flash range; combined with initial_address to set the progress bar's maximum."
+						},
+						"next_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the current hex address reached; combined with initial_address to set the progress bar's value as flashing progresses."
+						}
+					}
+				}
+			}
+		}
+	}
+}
