@@ -17,7 +17,7 @@ class WizLogger:
 			"file": {
 				"class": "logging.handlers.RotatingFileHandler",
 				"formatter": "standard",
-				"level": "INFO",
+				"level": "DEBUG",
 				"filename": "upload_wiz.log",
 				"maxBytes": 10485760,  # 10MB per file split
 				"backupCount": 5,

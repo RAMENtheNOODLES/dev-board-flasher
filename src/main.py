@@ -48,6 +48,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		QCoreApplication.setOrganizationDomain("CookieJAR")
 		QCoreApplication.setApplicationName("wizlog")
 
+
+		self.logger.info("Initializing Fonts")
 		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
 
 		if font_id != -1:
@@ -57,6 +59,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			# 5. Create a font object and apply it globally to the app
 			global_font = QFont(font_family, 12)  # Family name and default size
 			self.setFont(global_font)
+			self.logger.info("Done Initilaizing Fonts")
 		else:
 			self.logger.error("Error: Could not load font from resources.")
 
@@ -82,6 +85,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.vignette.raise_()
 		self.installEventFilter(self)
 
+		self.logger.info("Connecting functions to event triggers")
 		self.boardSelect.currentIndexChanged.connect(self.update_selected_board)
 		self.uploadButton.clicked.connect(self.browse_files)
 		self.actionOpen_File.triggered.connect(self.browse_files)
@@ -131,6 +135,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def check_for_updates_btn(self):
 		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it."""
+		self.logger.info("Checking for updates")
 		self.updater.check_for_updates_and_install()
 
 	def eventFilter(self, watched, event):
@@ -381,7 +386,13 @@ if __name__ == "__main__":
 
 	logger = logging.getLogger(__name__)
 
+	reload_attempt = 0
+
 	while True:
+		if reload_attempt >= 5:
+			logger.critical("Application tried restarting too many times. Exiting...")
+			sys.exit(-1)
+
 		logger.info("Started main app...")
 		with open(get_config_path(), "rb") as f:
 			config = tomllib.load(f)
@@ -392,16 +403,22 @@ if __name__ == "__main__":
 		if os.name == 'nt':
 			appid = f"cookiejar.uploadwiz.{ver}" # Custom unique string
 			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
-		window = MainWindow()
-		window.show()
 
-		exit_code = app.exec()
+		try:
+			window = MainWindow()
+			window.show()
 
-		window.close()
-		del window
-		gc.collect()
+			exit_code = app.exec()
 
-		if exit_code != EXIT_CODE_RESTART:
-			sys.exit(exit_code)
+			window.close()
+			del window
 
+			if exit_code != EXIT_CODE_RESTART:
+				sys.exit(exit_code)
+		except Exception as e:
+			logger.exception("Unknown exception has occurred...")
+			reload_attempt += 1
+		finally:
+			gc.collect()
+		
 		logger.info("Reloading Application...")

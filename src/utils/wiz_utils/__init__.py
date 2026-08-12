@@ -28,6 +28,7 @@ def get_config_path() -> Path:
 
 def check_for_updates() -> tuple[bool, str, dict]:
 	logger = logging.getLogger(__name__)
+	logger.info("Getting config and checking for updates")
 	with open(get_config_path(), "rb") as f:
 		config = tomllib.load(f)
 		ver = config["project"]["version"]
