@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.2.0-alpha"
+version = "0.3.0-alpha"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,7 +17,12 @@ classifiers = [
 dependencies = [
 	"pyside6>=6.11.1",
 	"esptool>=5.3.1",
+	"requests>=2.34.2",
+	"truststore>=0.9.1"
 ]
+
+[project.urls]
+Repository = "https://github.com/carter-rommelfanger/dev-board-flasher"
 
 [project.optional-dependencies]
 dev = [
@@ -37,7 +42,6 @@ testpaths = ["tests"]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
-    "src/deployment/main.build/scons-debug.py",
     "src/main.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",
@@ -53,6 +57,9 @@ files = [
     "src/utils/flashing_tools/base_flashing_tool.py",
     "src/utils/flashing_tools/cli_flashing_tool.py",
     "src/utils/flashing_tools/esp32.py",
+    "src/utils/wiz_utils/__init__.py",
+    "src/utils/wiz_utils/updater.py",
+    "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
     "ui/main_window.ui",
 ]

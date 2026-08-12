@@ -6,6 +6,8 @@ from PySide6.QtCore import QProcess
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QApplication, QTextEdit
 
+import logging
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -56,6 +58,8 @@ class BaseFlashingTool:
 		"""Sets up the underlying QProcess and connects its signals."""
 		# 3. Process Setup
 		self.process = QProcess()
+
+		self.logger = logging.getLogger(__name__)
 		
 		# Merge standard output and standard error into a single stream
 		self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -73,6 +77,7 @@ class BaseFlashingTool:
 		"""
 		self.log_box.clear()
 		self.log_box.append("Starting process...\n")
+		self.logger.info("Starting process...")
 
 	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
 		"""Flashes ``file`` onto ``board`` over ``port``.
@@ -257,8 +262,10 @@ class BaseFlashingTool:
 		"""
 		if exit_code == 0:
 			self.log_box.append("\n[PROCESS COMPLETED SUCCESSFULLY]")
+			self.logger.info("[PROCESS COMPLETED SUCCESSFULLY]")
 		else:
 			self.log_box.append(f"\n[PROCESS FAILED WITH EXIT CODE {exit_code}]")
+			self.logger.error(f"[PROCESS FAILED WITH EXIT CODE {exit_code}]")
 
 	def get_settings(self) -> list[str]:
 		"""Returns the names of the available settings presets.

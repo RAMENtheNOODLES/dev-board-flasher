@@ -5,6 +5,8 @@ from ..flashing_tools import BaseFlashingTool, cli_flashing_tool, esp32
 from ..custom_exceptions import UnknownFlasherType, UnsupportedBoardType
 from .board_type import BoardType
 
+import logging
+
 class FlasherFinder:
 	"""Discovers and instantiates flashing tools from configuration files.
 
@@ -26,6 +28,7 @@ class FlasherFinder:
 		"""
 		self.ext_path = ext_path if (ext_path != "") else None
 		self.tools = self.parse_tools(self.get_tools(self.ext_path))
+		self.logger = logging.getLogger(__name__)
 
 	@staticmethod
 	def get_tools(ext_path: str|None = None) -> list[str]:
@@ -35,11 +38,12 @@ class FlasherFinder:
 			list[str]: Paths to all TOML files found in the
 				``config/flashing_tools`` folder.
 		"""
+		logger = logging.getLogger(__name__)
 		tool_confs: list[str] = []
 
 		if (ext_path is not None):
 			ext_dir = Path(ext_path).resolve()
-			print(f"get_tools(), ext dir: {ext_dir}")
+			logger.debug(f"get_tools(), ext dir: {ext_dir}")
 			tool_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
 		
 		current_dir = Path(__file__).resolve().parent
@@ -52,7 +56,7 @@ class FlasherFinder:
 
 		tool_confs.extend([str(f) for f in config_path.iterdir() if (f.is_file() and f.suffix == ".toml")])
 
-		print(f"tool confs: {tool_confs}")
+		logger.debug(f"tool confs: {tool_confs}")
 
 		return tool_confs
 

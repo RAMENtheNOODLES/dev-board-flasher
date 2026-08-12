@@ -36,6 +36,8 @@ class Ui_MainWindow(object):
         self.actionAdd_External_Flashing_Tool.setObjectName(u"actionAdd_External_Flashing_Tool")
         self.actionAdd_External_Board_Directory = QAction(MainWindow)
         self.actionAdd_External_Board_Directory.setObjectName(u"actionAdd_External_Board_Directory")
+        self.actionCheck_for_Updates = QAction(MainWindow)
+        self.actionCheck_for_Updates.setObjectName(u"actionCheck_for_Updates")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.containerWidget = QFrame(self.centralwidget)
@@ -183,13 +185,17 @@ class Ui_MainWindow(object):
         self.menuFile.setObjectName(u"menuFile")
         self.menuEdit = QMenu(self.menubar)
         self.menuEdit.setObjectName(u"menuEdit")
+        self.menu_Help = QMenu(self.menubar)
+        self.menu_Help.setObjectName(u"menu_Help")
         MainWindow.setMenuBar(self.menubar)
 
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
+        self.menubar.addAction(self.menu_Help.menuAction())
         self.menuFile.addAction(self.actionOpen_File)
         self.menuEdit.addAction(self.actionAdd_External_Flashing_Tool)
         self.menuEdit.addAction(self.actionAdd_External_Board_Directory)
+        self.menu_Help.addAction(self.actionCheck_for_Updates)
 
         self.retranslateUi(MainWindow)
 
@@ -201,6 +207,7 @@ class Ui_MainWindow(object):
         self.actionOpen_File.setText(QCoreApplication.translate("MainWindow", u"Open", None))
         self.actionAdd_External_Flashing_Tool.setText(QCoreApplication.translate("MainWindow", u"Add External &Flashing Tool Directory", None))
         self.actionAdd_External_Board_Directory.setText(QCoreApplication.translate("MainWindow", u"Add External &Board Directory", None))
+        self.actionCheck_for_Updates.setText(QCoreApplication.translate("MainWindow", u"Check for &Updates", None))
         self.boardSelectLabel.setText(QCoreApplication.translate("MainWindow", u"Board Select", None))
         self.versionLabel.setText(QCoreApplication.translate("MainWindow", u"Version 0.0.0", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Baud Rate", None))
@@ -223,5 +230,6 @@ class Ui_MainWindow(object):
         self.label_5.setText(QCoreApplication.translate("MainWindow", u"Flash Tool Settings", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"Edit", None))
+        self.menu_Help.setTitle(QCoreApplication.translate("MainWindow", u"&Help", None))
     # retranslateUi
 

@@ -2,13 +2,16 @@ import gc
 import sys
 import ctypes
 import os
-from PySide6.QtCore import QIODevice, QTextStream, QEvent, QSettings, QCoreApplication
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QFileDialog
+from PySide6.QtCore import QIODevice, QEvent, QSettings, QCoreApplication
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog
 from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon
 
+from utils.wiz_utils import WizLogger, get_config_path, Updater
+import logging
+import logging.config
+
 import tomllib
-from pathlib import Path
 
 from utils.board_utils import BoardConfigurer
 
@@ -40,6 +43,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		super().__init__()
 		self.setupUi(self) # Binds the primary main window layout
 
+		self.logger = logging.getLogger(__name__)
+
 		QCoreApplication.setOrganizationDomain("CookieJAR")
 		QCoreApplication.setApplicationName("wizlog")
 
@@ -53,7 +58,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			global_font = QFont(font_family, 12)  # Family name and default size
 			self.setFont(global_font)
 		else:
-			print("Error: Could not load font from resources.")
+			self.logger.error("Error: Could not load font from resources.")
 
 		# Set icon
 		self.setWindowIcon(QIcon(":/logo.png"))
@@ -61,13 +66,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		settings = QSettings()
 
 		ext_boards = settings.value("ext_boards", "", type=str)
-		print(f"Ext Boards Dir: {ext_boards}")
+		self.logger.debug(f"Ext Boards Dir: {ext_boards}")
 		ext_tools = settings.value("ext_tools", "", type=str)
-		print(f"Ext Tools Dir: {ext_tools}")
+		self.logger.debug(f"Ext Tools Dir: {ext_tools}")
 
 		self.configurer = BoardConfigurer(str(ext_tools), str(ext_boards))
 		self.file_name = ""
 		self.serial = QSerialPort()
+		self.updater = Updater()
 
 		self.boardSelect.addItems([board_name.BoardName for board_name in self.configurer.get_board_cache() if board_name is not None])
 
@@ -90,28 +96,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.actionAdd_External_Board_Directory.triggered.connect(self.browse_board_folder)
 		self.actionAdd_External_Flashing_Tool.triggered.connect(self.browse_tool_folder)
+		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)
 
 		self.logText.clear()
 		self.logText.setFontPointSize(8)
 		self.check_can_upload()
 		self.update_selected_board()
 
-		# Update version label
-		# pyproject.toml is bundled as a data file via --include-data-files in
-		# pysidedeploy.spec so it's present next to main.py in both source and
-		# compiled (Nuitka onefile) runs.
-		current_dir = Path(__file__).resolve().parent
-		if "__compiled__" in globals():
-			# Nuitka onefile build: the extraction root corresponds directly to
-			# the "src" directory (no extra "src" nesting level like in source runs).
-			config_path = current_dir / "pyproject.toml"
-		else:
-			config_path =  current_dir.parent / "pyproject.toml"
+		config_path = get_config_path()
 
 		with open(config_path, "rb") as f:
-			config = tomllib.load(f)
-			ver = config["project"]["version"]
-			self.versionLabel.setText(f"v{ver}")
+			self.config = tomllib.load(f)
+			self.ver = self.config["project"]["version"]
+			self.versionLabel.setText(f"v{self.ver}")
+			self.check_for_updates_btn()
 		
 	def update_selected_board(self):
 		"""Updates the currently selected board from the board select dropdown.
@@ -127,9 +125,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flashToolSettings.clear()
 		if self.selected_board is not None:
 			settings = self.selected_board.Flasher.get_settings()
-			print(f"Updating board settings: {settings}")
+			self.logger.debug(f"Updating board settings: {settings}")
 			self.flashToolSettings.addItems(settings)
 		self.check_can_upload()
+
+	def check_for_updates_btn(self):
+		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it."""
+		self.updater.check_for_updates_and_install()
 
 	def eventFilter(self, watched, event):
 		"""Handles window resize events to keep overlay widgets in sync.
@@ -181,7 +183,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.vignette.hide()
 		if event.mimeData().hasUrls():
 			files = [url.toLocalFile() for url in event.mimeData().urls()]
-			print("Dropped files:", files)
+			self.logger.debug("Dropped files:", files)
 			# Update any labels or fields you designed here
 			self.file_name = files[0]
 
@@ -213,7 +215,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if self.file_name:
 			self.fileName.setText(self.file_name)
 
-			print(f"File ready for upload: {self.file_name}")
+			self.logger.debug(f"File ready for upload: {self.file_name}")
 
 		self.check_can_upload()
 
@@ -348,10 +350,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		
 		for port in ports:
 			self.serialPortsBox.addItem(port.portName())
-			print(f"Port Name: {port.portName()}")
-			print(f"Description: {port.description()}")
-			print(f"Manufacturer: {port.manufacturer()}")
-			print("-" * 20)
+			self.logger.debug(f"Port Name: {port.portName()}")
+			self.logger.debug(f"Description: {port.description()}")
+			self.logger.debug(f"Manufacturer: {port.manufacturer()}")
+			self.logger.debug("-" * 20)
 
 	def handle_serial_error(self, error: QSerialPort.SerialPortError):
 		"""Reacts to errors reported by the serial port connection.
@@ -365,20 +367,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				serial port.
 		"""
 		if error == QSerialPort.SerialPortError.ResourceError:
-			print("Device was disconnected...")
+			self.logger.error("Device was disconnected...")
 			self.toggle_connection()
 		elif error in [QSerialPort.SerialPortError.NotOpenError, QSerialPort.SerialPortError.NoError]:
 			pass
 		else:
-			print(f"Error: {error}")
+			self.logger.error(f"Error: {error}")
 			self.toggle_connection()
 
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
+	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
+
+	logger = logging.getLogger(__name__)
 
 	while True:
+		logger.info("Started main app...")
+		with open(get_config_path(), "rb") as f:
+			config = tomllib.load(f)
+			ver = config["project"]["version"]
+
+		logger.info(f"Version {ver}")
+		
 		if os.name == 'nt':
-			appid = 'cookiejar.uploadwiz.0.0.1-alpha' # Custom unique string
+			appid = f"cookiejar.uploadwiz.{ver}" # Custom unique string
 			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
 		window = MainWindow()
 		window.show()
@@ -392,4 +404,4 @@ if __name__ == "__main__":
 		if exit_code != EXIT_CODE_RESTART:
 			sys.exit(exit_code)
 
-		print("Reloading Application...")
+		logger.info("Reloading Application...")
