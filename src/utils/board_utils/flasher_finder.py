@@ -93,7 +93,7 @@ class FlasherFinder:
 
 				match name:
 					case "esp32":
-						out[name] = esp32.ESP32()
+						out[name] = esp32.ESP32(tool)
 					case _:
 						raise UnknownFlasherType(name)
 			else:
