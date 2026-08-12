@@ -42,6 +42,7 @@ testpaths = ["tests"]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/deployment/main.build/scons-debug.py",
     "src/main.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",
