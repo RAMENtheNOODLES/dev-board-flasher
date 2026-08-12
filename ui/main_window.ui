@@ -264,8 +264,15 @@
     <addaction name="actionAdd_External_Flashing_Tool"/>
     <addaction name="actionAdd_External_Board_Directory"/>
    </widget>
+   <widget class="QMenu" name="menu_Help">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionCheck_for_Updates"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menu_Help"/>
   </widget>
   <action name="actionOpen_File">
    <property name="text">
@@ -280,6 +287,11 @@
   <action name="actionAdd_External_Board_Directory">
    <property name="text">
     <string>Add External &amp;Board Directory</string>
+   </property>
+  </action>
+  <action name="actionCheck_for_Updates">
+   <property name="text">
+    <string>Check for &amp;Updates</string>
    </property>
   </action>
  </widget>
