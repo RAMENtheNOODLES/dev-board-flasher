@@ -8,6 +8,8 @@ from .board_part_id import get_board_part_id
 # Import all flashing tool variants
 from .flasher_finder import FlasherFinder
 
+import logging
+
 
 class BoardConfigurer:
 	"""Finds and configures boards automatically
@@ -27,6 +29,7 @@ class BoardConfigurer:
 				board TOML files, loaded in addition to ``config/boards``.
 				Defaults to "" (no external directory).
 		"""
+		self.logger = logging.getLogger(__name__)
 		self.ext_tool_path = ext_tool_path if (ext_tool_path != "") else ""
 		self.ext_board_path = ext_board_path if (ext_board_path != "") else None
 		self.refresh_cache()
@@ -53,11 +56,13 @@ class BoardConfigurer:
 			list[str]: A list of all files found in the config/boards folder
 		"""
 
+		logger = logging.getLogger(__name__)
+
 		board_confs: list[str] = []
 
 		if (ext_path is not None):
 			ext_dir = Path(ext_path).resolve()
-			print(f"get_boards(), Ext dir: {ext_dir}")
+			logger.debug(f"get_boards(), Ext dir: {ext_dir}")
 			board_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
 
 		current_dir = Path(__file__).resolve().parent
@@ -93,13 +98,15 @@ class BoardConfigurer:
 			UnsupportedBoardType: If the resolved flashing tool does not
 				support the board's type.
 		"""
+		logger = logging.getLogger(__name__)
+
 		try:
 			with open(conf_file, "rb") as f:
 				config_data = tomllib.load(f)
 		except FileNotFoundError:
 			return None
 
-		print(f"Got config data: {config_data}")
+		logger.debug(f"Got config data: {config_data}")
 
 		board_name = config_data["board_name"]
 
@@ -115,6 +122,3 @@ class BoardConfigurer:
 
 		return BoardConfig(board_name, flashing_tool, baud_rate, part_id, board_type, flashing_tool.get_supported_file_types())
 	
-
-
-

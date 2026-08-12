@@ -81,8 +81,8 @@ class CLIFlashingTool(BaseFlashingTool):
 			tpl = Template(arg)
 			parsedArgs.append(tpl.substitute(variables))
 
-		print(f"Unparsed arguments: {args}")
-		print(f"Using these arguments for cli: {parsedArgs}")
+		self.logger.debug(f"Unparsed arguments: {args}")
+		self.logger.debug(f"Using these arguments for cli: {parsedArgs}")
 
 		self.process.start(self.tool_loc if (self.tool_loc != "") else self.name, parsedArgs)
 
