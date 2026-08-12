@@ -6,6 +6,8 @@ from PySide6.QtCore import QProcess
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QApplication, QTextEdit, QProgressBar
 
+import tomllib
+
 import logging
 
 from typing import TYPE_CHECKING
@@ -33,11 +35,18 @@ class BaseFlashingTool:
 	and ``supported_file_types``.
 
 	Attributes:
-		name (str): Human-readable name of the flashing tool.
+		name (str): Human-readable name of the flashing tool. Populated from
+			``tool_name``.
+		config_data (dict): Parsed contents of the tool's TOML config file.
+		boards (list[str]): Raw board type names from
+			``tool_settings.supported_boards``, resolved into
+			``supported_board_types`` by subclasses.
 		supported_board_types (list[BoardType]): Board types this tool can
 			flash.
 		supported_file_types (list[str]): Glob patterns of firmware file
 			types this tool accepts.
+		tool_loc (str): Path to the tool executable, or ``""`` to use the
+			system PATH. Populated from ``tool_loc``.
 		process (QProcess): Process used to run the underlying flashing
 			command.
 		log_box (QTextEdit): Text widget that flashing output is streamed
@@ -53,15 +62,33 @@ class BaseFlashingTool:
 			when ``step_method`` is ``"step_array"``. Populated from
 			``tool_settings.progress_bar.num_steps``.
 		step_read (str): Regex used to read the current step count out of
-			process output when ``step_method`` is ``"regex"``. Populated
-			from ``tool_settings.progress_bar.step_read_regex``.
+			process output when ``step_method`` is ``"regex"`` and
+			``regex_method`` is ``"normal"``. Populated from
+			``tool_settings.progress_bar.step_read_regex``.
 		step_final (str): Regex used to read the total step count out of
-			process output when ``step_method`` is ``"regex"``. Populated
-			from ``tool_settings.progress_bar.step_final_regex``.
+			process output when ``step_method`` is ``"regex"`` and
+			``regex_method`` is ``"normal"``. Populated from
+			``tool_settings.progress_bar.step_final_regex``.
 		step_method (str): How progress is derived from process output:
 			``"none"``, ``"step_array"``, or ``"regex"``. Populated from
 			``tool_settings.progress_bar.method``. See
 			:meth:`update_progress_bar`.
+		regex_method (str): Which ``"regex"`` sub-strategy to use:
+			``"normal"`` reads current/total counts via ``step_read``/
+			``step_final``, ``"hex"`` reads hex memory addresses via
+			``initial_address``/``final_address``/``next_address`` instead.
+			Populated from ``tool_settings.progress_bar.regex_method``.
+		initial_address (str): ``regex_method == "hex"`` only. Regex matching
+			the starting hex address of the flash range in process output.
+			Populated from ``tool_settings.progress_bar.initial_address``.
+		final_address (str): ``regex_method == "hex"`` only. Regex matching
+			the ending hex address of the flash range in process output,
+			used with ``initial_address`` to compute the bar's maximum.
+			Populated from ``tool_settings.progress_bar.final_address``.
+		next_address (str): ``regex_method == "hex"`` only. Regex matching
+			the current hex address reached in process output, used with
+			``initial_address`` to compute the bar's value. Populated from
+			``tool_settings.progress_bar.next_address``.
 		step_on (int): Index into ``progress_on`` of the marker currently
 			being watched for, when ``step_method`` is ``"step_array"``.
 		progress_on (list[str]): Ordered markers to watch for in process
@@ -83,8 +110,15 @@ class BaseFlashingTool:
 	step_on = 0
 	progress_on = []
 
-	def __init__(self) -> None:
-		"""Sets up the underlying QProcess and connects its signals."""
+	def __init__(self, config_file: str) -> None:
+		"""Loads ``config_file`` and sets up the underlying QProcess.
+
+		Args:
+			config_file (str): Path to the tool's configuration TOML file.
+				Populates ``name``, ``supported_file_types``, ``boards``,
+				``tool_loc``, ``custom_settings``, and the progress-bar
+				settings described in the class docstring.
+		"""
 		# 3. Process Setup
 		self.process = QProcess()
 
@@ -98,6 +132,33 @@ class BaseFlashingTool:
 		self.process.finished.connect(self.process_finished)
 
 		self._ansi_format = QTextCharFormat()
+
+		with open(config_file, "rb") as f:
+			self.config_data = tomllib.load(f)
+
+		self.name = self.config_data["tool_name"]
+		self.supported_file_types: list[str] = self.config_data["tool_settings"]["supported_file_types"]
+
+		self.boards: list[str] = self.config_data["tool_settings"]["supported_boards"]
+		self.supported_board_types = []
+		self.tool_loc = self.config_data["tool_loc"]
+
+		self.progress_on: list[str] = self.config_data["tool_settings"].get("progress_bar", {}).get("inc_step_on", ["#"])
+		self.num_steps = self.config_data["tool_settings"].get("progress_bar", {}).get("num_steps", 50)
+		self.step_read = self.config_data["tool_settings"].get("progress_bar", {}).get("step_read_regex", "")
+		self.step_final = self.config_data["tool_settings"].get("progress_bar", {}).get("step_final_regex", "")
+		self.step_method = self.config_data["tool_settings"].get("progress_bar", {}).get("method", "none")
+		self.regex_method = self.config_data["tool_settings"].get("progress_bar", {}).get("regex_method", "")
+		self.final_address = self.config_data["tool_settings"].get("progress_bar", {}).get("final_address", "")
+		self.next_address = self.config_data["tool_settings"].get("progress_bar", {}).get("next_address", "")
+		self.initial_address = self.config_data["tool_settings"].get("progress_bar", {}).get("initial_address", "")
+		self.custom_settings = self.config_data["tool_settings"].get("custom_settings", {})
+
+		# Progress bar regex variables
+		self.final: int|None = None
+		self.next_initial: int|None = None
+		self.step_on = 0
+
 
 	def flash_preamble(self):
 		"""Clears the log box and writes a starting message.
@@ -290,11 +351,22 @@ class BaseFlashingTool:
 			After a match, ``self.step_on`` moves to the next entry in
 			``self.progress_on``, wrapping back to the start once the list is
 			exhausted.
-		- ``"regex"``: ``self.step_read`` and ``self.step_final`` are matched
-			against ``data`` as regular expressions to extract the current
-			and total step counts (e.g. from ``"12/50"``-style output); when
-			both match, the bar's maximum and value are set directly from
-			them.
+		- ``"regex"``: Behavior depends on ``self.regex_method``:
+
+			- ``"normal"``: ``self.step_read`` and ``self.step_final`` are
+				matched against ``data`` to extract the current and total
+				step counts (e.g. from ``"12/50"``-style output); when both
+				match, the bar's maximum and value are set directly from
+				them.
+			- Any other value (treated as ``"hex"``): ``self.initial_address``,
+				``self.final_address``, and ``self.next_address`` are matched
+				against ``data`` to extract hex memory addresses. Once the
+				initial and final addresses have both been seen, the bar's
+				maximum is set to ``final - initial``; each subsequent match
+				of ``self.next_address`` sets the bar's value to
+				``next - initial``. Suits tools (e.g. esptool's hex-address
+				write progress) that report progress as absolute flash
+				addresses rather than a step count.
 		- Any other value (e.g. ``"none"``): no-op.
 
 		Args:
@@ -316,13 +388,33 @@ class BaseFlashingTool:
 				if (self.step_on > len(self.progress_on) - 1):
 					self.step_on = 0
 		elif (self.step_method.lower() == "regex"):
-			self.logger.info(f"Read Regex: {self.step_read}, Final Regex: {self.step_final}")
-			current = re.search(self.step_read, data)
-			out_of = re.search(self.step_final, data)
+			if self.regex_method == "normal":
+				self.logger.info(f"Read Regex: {self.step_read}, Final Regex: {self.step_final}")
+				current = re.search(self.step_read, data)
+				out_of = re.search(self.step_final, data)
 
-			if (current is not None and out_of is not None):
-				self.p_bar.setMaximum(int(out_of.group()))
-				self.p_bar.setValue(int(current.group()))
+				if (current is not None and out_of is not None):
+					self.p_bar.setMaximum(int(out_of.group()))
+					self.p_bar.setValue(int(current.group()))
+			else:
+				next_final = re.search(self.final_address, data)
+				next_initial = re.search(self.initial_address, data)
+
+				if (next_initial is not None):
+					self.next_initial = int(next_initial.group(), 16)
+
+				if (next_final is not None and self.next_initial is not None):
+					self.p_bar.setValue(0)
+					self.final = int(next_final.group(), 16) - self.next_initial
+					self.p_bar.setMaximum(self.final)
+					self.logger.debug(f"New max pbar value: {self.final}")
+
+				next_addr = re.search(self.next_address, data)
+
+				if (self.final is not None and next_addr is not None and self.next_initial is not None):
+					new_val = int(next_addr.group(), 16) - self.next_initial
+					self.logger.debug(f"New pbar value: {new_val}")
+					self.p_bar.setValue(new_val)
 
 	def read_terminal_stream(self):
 		"""Reads buffered process output and appends it to the log box.

@@ -47,7 +47,7 @@
 				"progress_bar": {
 					"type": "object",
 					"description": "Settings relating to how the progress bar gets updated.",
-					"required": [ "num_steps" ],
+					"required": [ "method" ],
 					"additionalProperties": true,
 					"properties": {
 						"method": {
@@ -65,13 +65,30 @@
 							"items": { "type": "string" },
 							"minItems": 1
 						},
+						"regex_method": {
+							"type": "string",
+							"description": "Which regex strategy \"regex\" mode uses: \"normal\" reads a current/total step count via step_read_regex/step_final_regex, \"hex\" reads hex memory addresses via initial_address/final_address/next_address. Defaults to \"normal\".",
+							"enum": [ "normal", "hex" ]
+						},
 						"step_read_regex": {
 							"type": "string",
-							"description": "A regex expression that looks for a percentage or x out of y expression to update the progress bar"
+							"description": "regex_method \"normal\" only. A regex expression that looks for a percentage or x out of y expression to update the progress bar"
 						},
 						"step_final_regex": {
 							"type": "string",
-							"description": "A regex expression that looks for the final amount of items to determine a step size"
+							"description": "regex_method \"normal\" only. A regex expression that looks for the final amount of items to determine a step size"
+						},
+						"initial_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the starting hex address of the flash range in the tool's output."
+						},
+						"final_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the ending hex address of the flash range; combined with initial_address to set the progress bar's maximum."
+						},
+						"next_address": {
+							"type": "string",
+							"description": "regex_method \"hex\" only. A regex expression that matches the current hex address reached; combined with initial_address to set the progress bar's value as flashing progresses."
 						}
 					}
 				}

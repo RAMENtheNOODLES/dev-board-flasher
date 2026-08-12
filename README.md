@@ -56,10 +56,14 @@ Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema
 | `method` | How progress is derived from the tool's output: `"none"`, `"step_array"`, or `"regex"`. |
 | `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where each matched step advances the bar by `100 // num_steps`. |
 | `inc_step_on` | `"step_array"` only. A list of markers to watch for in the tool's output, in order. Each time the current marker is found, the bar advances and moves on to the next marker, wrapping back to the first once the list is exhausted. |
-| `step_read_regex` | `"regex"` only. A regular expression matching the current step count in the tool's output (e.g. the `12` in `"12/50"`). |
-| `step_final_regex` | `"regex"` only. A regular expression matching the total step count in the tool's output (e.g. the `50` in `"12/50"`). |
+| `regex_method` | `"regex"` only. Which regex strategy to use: `"normal"` (current/total counts) or `"hex"` (hex memory addresses). Defaults to `"normal"`. |
+| `step_read_regex` | `"regex"` with `regex_method = "normal"` only. A regular expression matching the current step count in the tool's output (e.g. the `12` in `"12/50"`). |
+| `step_final_regex` | `"regex"` with `regex_method = "normal"` only. A regular expression matching the total step count in the tool's output (e.g. the `50` in `"12/50"`). |
+| `initial_address` | `"regex"` with `regex_method = "hex"` only. A regular expression matching the starting hex address of the flash range in the tool's output. |
+| `final_address` | `"regex"` with `regex_method = "hex"` only. A regular expression matching the ending hex address of the flash range; combined with `initial_address` to set the bar's maximum (`final - initial`). |
+| `next_address` | `"regex"` with `regex_method = "hex"` only. A regular expression matching the current hex address reached; combined with `initial_address` to set the bar's value (`next - initial`) as flashing progresses. |
 
-`"step_array"` suits tools that print a repeating character per unit of work (e.g. AVRDude's `#` progress dots); `"regex"` suits tools that print an explicit `current/total` count (e.g. esptool's `12/50` write progress). See `config/flashing_tools/avrdude.toml` and `config/flashing_tools/esp32.toml` for an example of each.
+`"step_array"` suits tools that print a repeating character per unit of work (e.g. AVRDude's `#` progress dots); `"regex"` suits tools that print an explicit `current/total` count (`regex_method = "normal"`, e.g. esptool's `12/50` write progress) or that report progress as absolute hex flash addresses (`regex_method = "hex"`). See `config/flashing_tools/avrdude.toml` and `config/flashing_tools/esp32.toml` for an example of each.
 
 ### How to use variables
 

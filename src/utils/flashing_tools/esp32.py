@@ -29,28 +29,18 @@ class ESP32(BaseFlashingTool):
 		"""Initializes the tool, restricting it to ESP-IDF boards.
 
 		Unlike :class:`CLIFlashingTool`, esptool has no CLI arguments to
-		configure, so ``config_file`` is only read for its
-		``tool_settings.progress_bar`` table.
+		configure, so ``custom_settings`` (loaded by the base class along
+		with ``name``, ``supported_file_types``, and the progress-bar
+		settings) goes unused here.
 
 		Args:
-			config_file (str): Path to the tool's configuration TOML file,
-				used to populate progress-bar settings (``method``,
-				``num_steps``, ``inc_step_on``, ``step_read_regex``,
-				``step_final_regex``). Defaults to ``""``.
+			config_file (str): Path to the tool's configuration TOML file.
+				Defaults to ``""``.
 		"""
-		super().__init__()
+		super().__init__(config_file)
 
-		with open(config_file, "rb") as f:
-			self.config_data = tomllib.load(f)
-
-		from ..board_utils import BoardType, BoardConfig
+		from ..board_utils import BoardType
 		self.supported_board_types = [BoardType.ESPIDF]
-		self.progress_on: list[str] = self.config_data["tool_settings"].get("progress_bar", {}).get("inc_step_on", ["#"])
-		self.num_steps = self.config_data["tool_settings"].get("progress_bar", {}).get("num_steps", 50)
-		self.step_read = self.config_data["tool_settings"].get("progress_bar", {}).get("step_read_regex", "")
-		self.step_final = self.config_data["tool_settings"].get("progress_bar", {}).get("step_final_regex", "")
-		self.step_method = self.config_data["tool_settings"].get("progress_bar", {}).get("method", "none")
-		self.step_on = 0
 
 	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
 		"""Detects the connected chip and flashes ``file`` onto it.

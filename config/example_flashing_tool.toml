@@ -19,7 +19,7 @@ default = []
 
 [tool_settings.progress_bar]
 # Settings relating to how the progress bar gets updated
-method = "NONE"
+method = "none"
 
 num_steps = 50
 # This is a list of values that increment the progress bar. It starts with the first item and each time it matches that 
@@ -29,5 +29,12 @@ inc_step_on = [
 	"#"
 ]
 
+regex_method = "normal"
+
 step_read_regex = ""
 step_final_regex = ""
+
+# hex regex vars
+initial_address = ""
+final_address = ""
+next_address = ""
