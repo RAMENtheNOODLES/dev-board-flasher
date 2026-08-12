@@ -41,8 +41,25 @@ Flashing tools are declared as TOML files in `config/flashing_tools/`. See `conf
 | `tool_settings.supported_boards` | List of board types this tool can flash. See `BoardType` for available options. |
 | `tool_settings.supported_file_types` | Glob patterns of firmware files this tool accepts. |
 | `tool_settings.custom_settings` | CLI-only. A table of one or more named settings presets, each a list of command-line arguments passed to the tool, in order. |
+| `tool_settings.progress_bar` | Optional. Settings controlling how the upload progress bar advances while this tool runs. See [Progress Bar](#progress-bar) below. |
 
 Each key under `tool_settings.custom_settings` (e.g. `default`, `dry_run`) defines a separate argument list for that tool. All of a board's flasher's preset names are shown in the app's settings dropdown next to the upload button; the one selected there is passed as the `settings` argument to `flash()` and determines which argument list is used. A `default` preset is used if none is explicitly selected. See `config/flashing_tools/avrdude.toml`, which defines both a `default` preset and a `dry_run` preset that adds AVRDude's `-n` (no-write) flag.
+
+Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema.json` directive (see the bundled `config/flashing_tools/*.toml`) to get editor validation and autocomplete against `config/flashing_tool_schema.json`.
+
+### Progress Bar
+
+`tool_settings.progress_bar` is an optional table that drives the upload progress bar shown next to the log box while a tool runs. If omitted, `method` defaults to `"none"` and the progress bar doesn't move.
+
+| Key | Description |
+| --- | --- |
+| `method` | How progress is derived from the tool's output: `"none"`, `"step_array"`, or `"regex"`. |
+| `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where each matched step advances the bar by `100 // num_steps`. |
+| `inc_step_on` | `"step_array"` only. A list of markers to watch for in the tool's output, in order. Each time the current marker is found, the bar advances and moves on to the next marker, wrapping back to the first once the list is exhausted. |
+| `step_read_regex` | `"regex"` only. A regular expression matching the current step count in the tool's output (e.g. the `12` in `"12/50"`). |
+| `step_final_regex` | `"regex"` only. A regular expression matching the total step count in the tool's output (e.g. the `50` in `"12/50"`). |
+
+`"step_array"` suits tools that print a repeating character per unit of work (e.g. AVRDude's `#` progress dots); `"regex"` suits tools that print an explicit `current/total` count (e.g. esptool's `12/50` write progress). See `config/flashing_tools/avrdude.toml` and `config/flashing_tools/esp32.toml` for an example of each.
 
 ### How to use variables
 

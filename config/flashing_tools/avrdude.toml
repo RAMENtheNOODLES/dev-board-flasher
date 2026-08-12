@@ -1,3 +1,4 @@
+#:schema /config/flashing_tool_schema.json
 # This is what gets used in the "flasher" setting in a board configuration
 tool_name = "avrdude"
 tool_loc = ""
@@ -29,4 +30,16 @@ dry_run = [
 	"-b", "$baudrate",
 	"-D",
 	"-U", "flash:w:$file:i"
+]
+
+[tool_settings.progress_bar]
+# Settings relating to how the progress bar gets updated
+method = "step_array"
+
+num_steps = 100
+# This is a list of values that increment the progress bar. It starts with the first item and each time it matches that 
+# item in the output terminal, it increments the progress bar and moves to the next item.
+# This will wrap around to the beginning once progressing to the 
+inc_step_on = [
+	"#"
 ]

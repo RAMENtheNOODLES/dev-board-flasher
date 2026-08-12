@@ -2,6 +2,7 @@ from __future__ import annotations
 from string import Template
 
 import tomllib
+import re
 
 from . import BaseFlashingTool
 
@@ -42,6 +43,10 @@ class CLIFlashingTool(BaseFlashingTool):
 		self.supported_board_types = []
 		self.tool_loc = self.config_data["tool_loc"]
 
+		self.progress_on: list[str] = self.config_data["tool_settings"].get("progress_bar", {}).get("inc_step_on", ["#"])
+		self.num_steps = self.config_data["tool_settings"].get("progress_bar", {}).get("num_steps", 50)
+		self.step_on = 0
+
 		self.custom_settings = self.config_data["tool_settings"]["custom_settings"]
 
 		from ..board_utils.board_type import get_board_type
@@ -65,6 +70,9 @@ class CLIFlashingTool(BaseFlashingTool):
 				the name isn't found, the CLI is run with no arguments.
 		"""
 		super()
+
+		self.step_on = 0
+		self.p_bar.setValue(0)
 
 		variables = {
 			"partid": board.PartID.name,

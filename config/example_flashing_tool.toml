@@ -1,6 +1,8 @@
+#:schema /config/flashing_tool_schema.json
 # This is what gets used in the "flasher" setting in a board configuration
-tool_name = "example flashing tool"
+
 # This is where the tool is located, leave blank to assume the tool is in the PATH
+tool_name = ""
 tool_loc = ""
 
 [tool_settings]
@@ -14,3 +16,18 @@ supported_file_types = ["*.hex", "*.bin"]
 [tool_settings.custom_settings]
 # CLI Arguments see the AVRDude implementation for more details
 default = []
+
+[tool_settings.progress_bar]
+# Settings relating to how the progress bar gets updated
+method = "NONE"
+
+num_steps = 50
+# This is a list of values that increment the progress bar. It starts with the first item and each time it matches that 
+# item in the output terminal, it increments the progress bar and moves to the next item.
+# This will wrap around to the beginning once progressing to the 
+inc_step_on = [
+	"#"
+]
+
+step_read_regex = ""
+step_final_regex = ""
