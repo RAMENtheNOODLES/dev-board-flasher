@@ -153,7 +153,7 @@ class BoardConfigurer:
 		try:
 			flashing_tool = flasher_finder.get_flashing_tool(config_data["board_settings"]["flasher"], board_type)
 		except UnknownFlasherType as e:
-			logger.warning(f"Unknown Flasher type: {config_data["board_settings"]["flasher"]}")
+			logger.warning(f"Unknown Flasher type: {config_data['board_settings']['flasher']}")
 			return None
 
 		baud_rate = config_data["board_settings"]["baud_rate"]
