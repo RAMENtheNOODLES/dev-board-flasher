@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.5.1-alpha"
+version = "0.6.0-beta"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,8 @@ dependencies = [
 	"requests>=2.34.2",
 	"truststore>=0.9.1",
 	"keyring>=25.7.0",
-	"requests-cache>=1.3.3"
+	"requests-cache>=1.3.3",
+	"canlib>=1.33.358"
 ]
 
 [project.urls]
@@ -48,6 +49,8 @@ files = [
     "src/github_token_ui.py",
     "src/main.py",
     "src/remote_configs.py",
+    "src/tools/__init__.py",
+    "src/tools/can.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",
     "src/utils/board_utils/board_configurer.py",
@@ -69,6 +72,7 @@ files = [
     "src/utils/wiz_utils/updater.py",
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
+    "ui/can.ui",
     "ui/github_token.ui",
     "ui/main_window.ui",
     "ui/remote_configs.ui",
