@@ -277,10 +277,19 @@
     <property name="title">
      <string>&amp;Help</string>
     </property>
+    <addaction name="action_About"/>
     <addaction name="actionCheck_for_Updates"/>
+   </widget>
+   <widget class="QMenu" name="menu_Tools">
+    <property name="title">
+     <string>&amp;Tools</string>
+    </property>
+    <addaction name="actionCANLib_Kvaser"/>
+    <addaction name="action_Elf_Parser"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menu_Tools"/>
    <addaction name="menu_Help"/>
   </widget>
   <action name="actionOpen_File">
@@ -316,6 +325,21 @@
   <action name="actionRemote_Configurations">
    <property name="text">
     <string>Remote &amp;Configurations</string>
+   </property>
+  </action>
+  <action name="actionCANLib_Kvaser">
+   <property name="text">
+    <string>&amp;CAN</string>
+   </property>
+  </action>
+  <action name="action_Elf_Parser">
+   <property name="text">
+    <string>&amp;Elf Parser</string>
+   </property>
+  </action>
+  <action name="action_About">
+   <property name="text">
+    <string>&amp;About</string>
    </property>
   </action>
  </widget>
