@@ -80,13 +80,23 @@ Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema
 | `$boardtype` | The board's `Type` name (from `board_settings.type`). |
 | `$file` | Path to the firmware file selected for upload. |
 
-## External Board and Flashing Tool Directories
+## Remote Board and Flashing Tool Configs
 
-Boards and flashing tools don't have to live inside the app's built-in `config/` directory. You can point the app at additional external folders (e.g. for boards/tools you maintain separately, or when running a packaged build) from the **Edit** menu:
+Boards and flashing tools don't have to live inside the app's built-in `config/` directory. From **Edit > Remote Configurations** you can add extra board/flashing-tool TOML files by local path or GitHub file URL (either a normal `github.com/{owner}/{repo}/blob/{ref}/{path}` link, as seen when browsing a repo, or a `raw.githubusercontent.com` link) — each entry is loaded in addition to (not instead of) the boards/tools bundled in `config/boards` and `config/flashing_tools`, and is automatically treated as a board or a flashing tool based on whether its TOML declares a `board_name` or `tool_name` key.
 
-- **Edit > Add External Board Directory** opens a folder picker for an external folder of board TOML files.
-- **Edit > Add External Flashing Tool Directory** opens a folder picker for an external folder of flashing tool TOML files.
+The **Remote Configurations** dialog lets you add rows by typing/pasting a path or URL directly, or via a file picker for local files, and edit or remove existing rows; the list is only saved when the dialog is accepted (e.g. clicking OK). Picking up added, edited, or removed entries requires restarting the app, either manually from **Edit > Reload App** or by relaunching.
 
-Each TOML file in the selected folder is loaded in addition to (not instead of) the boards/tools bundled in `config/boards` and `config/flashing_tools`. After picking a folder, the app restarts automatically to pick up the new configuration files.
+The list is remembered between launches (stored via `QSettings` under the `CookieJAR`/`wizlog` organization/application name, see `StoredSettings.REMOTE_CONFIGS` in `src/utils/wiz_utils/stored_settings.py`).
 
-The selected paths are remembered between launches (stored via `QSettings` under the `CookieJAR`/`wizlog` organization/application name). To stop using an external folder, pick a different one, or clear the corresponding value from your OS's settings storage (e.g. the Windows Registry under `HKEY_CURRENT_USER\Software\CookieJAR\wizlog`).
+### Fetching from private GitHub repos
+
+GitHub URLs are fetched through the GitHub Contents API (works for both public and private repos), which requires a personal access token (PAT) with read access to the repo. Set one from **Edit > Github Personal Access Token**; unlike the settings above, it's stored in your OS's credential store (via [`keyring`](https://pypi.org/project/keyring/)) rather than `QSettings`, since it's a secret. See [docs/github_token.md](docs/github_token.md) for a walkthrough of creating a suitable token.
+
+## Remembered Session State
+
+Beyond the remote configs above, the app remembers the following between launches (via `QSettings`, see `src/utils/wiz_utils/stored_settings.py`) so it reopens the way you left it:
+
+- The selected board.
+- The selected flash tool settings preset.
+- The selected baud rate.
+- The last firmware file chosen (via the file picker or drag-and-drop).

@@ -1,9 +1,14 @@
 import tomllib
 from pathlib import Path
+import io
 
 from .board_config import BoardConfig
 from .board_type import get_board_type
 from .board_part_id import get_board_part_id
+from ..wiz_utils.github_token import GithubToken
+from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
+from ..custom_exceptions.remote_config_error import RemoteConfigError
+from ..custom_exceptions.unknown_flasher_type import UnknownFlasherType
 
 # Import all flashing tool variants
 from .flasher_finder import FlasherFinder
@@ -17,27 +22,29 @@ class BoardConfigurer:
 
 	_board_cache: list[BoardConfig|None] = []
 
-	def __init__(self, ext_tool_path: str = "", ext_board_path: str = ""):
+	def __init__(self, remote_configs: list[str] = []):
 		"""Initializes the configurer and builds the initial board cache.
 
 		Args:
-			ext_tool_path (str, optional): Path to an external directory of
-				flashing tool TOML files, loaded in addition to
-				``config/flashing_tools``. Defaults to "" (no external
-				directory).
-			ext_board_path (str, optional): Path to an external directory of
-				board TOML files, loaded in addition to ``config/boards``.
-				Defaults to "" (no external directory).
+			remote_configs (list[str], optional): Local paths and/or GitHub
+				URLs of extra board/flashing-tool TOML files, loaded in
+				addition to ``config/boards`` and ``config/flashing_tools``.
+				Each entry is classified by whether its parsed TOML declares
+				a ``board_name`` or ``tool_name`` key (see
+				:func:`wiz_utils.get_remote_configs`). Defaults to ``[]``.
 		"""
 		self.logger = logging.getLogger(__name__)
-		self.ext_tool_path = ext_tool_path if (ext_tool_path != "") else ""
-		self.ext_board_path = ext_board_path if (ext_board_path != "") else None
+		self.remote_configs = remote_configs
 		self.refresh_cache()
 
 	def refresh_cache(self):
 		"""Rebuilds the board cache from the board configuration files on disk."""
-		boards = self.get_boards(self.ext_board_path)
-		self._board_cache = [self.read_board_config(board, self.ext_tool_path) for board in boards]
+		# Shared across every board below so each remote URL is fetched and
+		# parsed at most once per refresh, instead of once per board.
+		config_cache: dict[str, dict | None] = {}
+		flasher_finder = FlasherFinder(self.remote_configs, config_cache)
+		boards = self.get_boards(self.remote_configs, config_cache)
+		self._board_cache = [self.read_board_config(board, flasher_finder, config_cache) for board in boards]
 
 	def get_board_cache(self) -> list[BoardConfig|None]:
 		"""Returns the cached list of parsed board configurations.
@@ -49,21 +56,42 @@ class BoardConfigurer:
 		return self._board_cache
 
 	@staticmethod
-	def get_boards(ext_path: str|None = None) -> list[str]:
-		"""Retrieves board configuration files from the config path
+	def get_board_configs(remote_configs: list[str], cache: dict[str, dict | None] | None = None) -> list[str]:
+		"""Filters ``remote_configs`` down to the ones that declare a board.
+
+		Args:
+			remote_configs (list[str]): Local paths and/or GitHub URLs to
+				check.
+			cache (dict[str, dict | None] | None, optional): Shared memo
+				passed through to :func:`wiz_utils.get_remote_configs`.
+				Defaults to ``None``.
 
 		Returns:
-			list[str]: A list of all files found in the config/boards folder
+			list[str]: The subset of ``remote_configs`` whose parsed TOML
+				contains a ``board_name`` key.
+		"""
+		return get_remote_configs(remote_configs, "board_name", cache)
+
+	@staticmethod
+	def get_boards(remote_configs: list[str] = [], cache: dict[str, dict | None] | None = None) -> list[str]:
+		"""Retrieves board configuration files from the config path, plus any remote ones.
+
+		Args:
+			remote_configs (list[str], optional): Local paths and/or GitHub
+				URLs to check for board configs, in addition to the bundled
+				``config/boards`` folder. Defaults to ``[]``.
+			cache (dict[str, dict | None] | None, optional): Shared memo
+				passed through to :meth:`get_board_configs`. Defaults to
+				``None``.
+
+		Returns:
+			list[str]: Paths/URLs of all board TOML files found, from both
+				``config/boards`` and ``remote_configs``.
 		"""
 
 		logger = logging.getLogger(__name__)
 
-		board_confs: list[str] = []
-
-		if (ext_path is not None):
-			ext_dir = Path(ext_path).resolve()
-			logger.debug(f"get_boards(), Ext dir: {ext_dir}")
-			board_confs = [str(f) for f in ext_dir.iterdir() if (f.is_file() and f.suffix == ".toml")]
+		board_confs: list[str] = BoardConfigurer.get_board_configs(remote_configs, cache)
 
 		current_dir = Path(__file__).resolve().parent
 		if "__compiled__" in globals():
@@ -78,32 +106,40 @@ class BoardConfigurer:
 		return board_confs
 
 	@staticmethod
-	def read_board_config(conf_file: str, ext_tools: str = "") -> BoardConfig|None:
+	def read_board_config(conf_file: str, flasher_finder: FlasherFinder, cache: dict[str, dict | None] | None = None) -> BoardConfig|None:
 		"""Parses a single board configuration TOML file into a BoardConfig.
 
 		Resolves the board's part ID, board type, and flashing tool
-		(via :class:`FlasherFinder`) from the values declared in the file.
+		(via ``flasher_finder``) from the values declared in the file.
 
 		Args:
-			conf_file (str): Path to the board configuration TOML file.
+			conf_file (str): Local path or GitHub URL of the board
+				configuration TOML file.
+			flasher_finder (FlasherFinder): Already-built flashing tool
+				lookup, shared across all boards in a refresh so tool
+				discovery only happens once.
+			cache (dict[str, dict | None] | None, optional): Shared memo of
+				already-resolved remote configs, passed through to
+				:func:`wiz_utils.read_toml_file_from_url_or_path`. Defaults
+				to ``None``.
 
 		Returns:
-			BoardConfig: The fully resolved configuration for the board.
+			BoardConfig | None: The fully resolved configuration for the
+				board, or ``None`` if ``conf_file`` couldn't be read (e.g. a
+				failed remote fetch) or declares a ``board_settings.flasher``
+				that doesn't match any discovered flashing tool (logged as a
+				warning rather than raised).
 
 		Raises:
 			UnknownPartID: If ``board_settings.part_id`` is not a known
 				:class:`BoardPartID`.
-			UnknownFlasherType: If ``board_settings.flasher`` does not match
-				a discovered flashing tool.
 			UnsupportedBoardType: If the resolved flashing tool does not
 				support the board's type.
 		"""
 		logger = logging.getLogger(__name__)
+		config_data = read_toml_file_from_url_or_path(conf_file, cache)
 
-		try:
-			with open(conf_file, "rb") as f:
-				config_data = tomllib.load(f)
-		except FileNotFoundError:
+		if config_data is None:
 			return None
 
 		logger.debug(f"Got config data: {config_data}")
@@ -114,9 +150,11 @@ class BoardConfigurer:
 
 		board_type = get_board_type(config_data["board_settings"]["type"])
 
-		ff = FlasherFinder(ext_tools)
-
-		flashing_tool = ff.get_flashing_tool(config_data["board_settings"]["flasher"], board_type)
+		try:
+			flashing_tool = flasher_finder.get_flashing_tool(config_data["board_settings"]["flasher"], board_type)
+		except UnknownFlasherType as e:
+			logger.warning(f"Unknown Flasher type: {config_data['board_settings']['flasher']}")
+			return None
 
 		baud_rate = config_data["board_settings"]["baud_rate"]
 

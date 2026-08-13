@@ -1,9 +1,15 @@
 from .wiz_logger import WizLogger
+from .stored_settings import StoredSettings
+from .github_token import GithubToken
 
 import tomllib, requests, subprocess, sys, os, ctypes
 from pathlib import Path
 import logging
 import truststore
+from ..custom_exceptions.remote_config_error import RemoteConfigError
+import io
+
+from typing import Any
 
 # Verify TLS certs against the OS trust store (e.g. Windows) instead of only
 # certifi's public bundle, so requests still works behind a corporate
@@ -25,6 +31,67 @@ def get_config_path() -> Path:
 
 	logger.debug(f"Retrieved config path: {config_path}")
 	return config_path
+
+def read_toml_file_from_url_or_path(path_or_url: str, cache: dict[str, dict[str, Any] | None] | None = None) -> dict[str, Any]|None:
+	"""Parses a TOML config from a local path or (github) URL.
+
+	Args:
+		path_or_url (str): A local filesystem path, or a GitHub file URL as
+			accepted by :meth:`GithubToken.fetch_file`.
+		cache (dict[str, dict[str, Any] | None] | None, optional): Shared
+			memo of already-resolved configs, keyed by ``path_or_url``. When
+			given, board/tool discovery can classify and parse the same
+			remote file without re-downloading it. Defaults to ``None``
+			(always re-reads).
+
+	Returns:
+		dict[str, Any] | None: The parsed TOML, or ``None`` if a remote
+			fetch failed.
+	"""
+	logger = logging.getLogger(__name__)
+
+	if cache is not None and path_or_url in cache:
+		return cache[path_or_url]
+
+	if "github" in path_or_url:
+		try:
+			config_data = tomllib.load(io.BytesIO(GithubToken.fetch_file(path_or_url)))
+		except RemoteConfigError:
+			logger.exception("Remote Config Error")
+			config_data = None
+	else:
+		with open(path_or_url, "rb") as f:
+			config_data = tomllib.load(f)
+
+	if cache is not None:
+		cache[path_or_url] = config_data
+
+	return config_data
+
+def get_remote_configs(remote_configs: list[str], check_in_config: str, cache: dict[str, dict[str, Any] | None] | None = None) -> list[str]:
+	"""Filters configs (local or remote) down to ones declaring a given key.
+
+	Args:
+		remote_configs (list[str]): Local paths and/or GitHub URLs to check.
+		check_in_config (str): Top-level TOML key that must be present
+			(e.g. ``"board_name"`` or ``"tool_name"``) for a config to be
+			included in the result.
+		cache (dict[str, dict[str, Any] | None] | None, optional): Shared
+			memo passed through to :func:`read_toml_file_from_url_or_path`
+			so the same URL isn't fetched once to classify it here and
+			again to actually parse it later. Defaults to ``None``.
+
+	Returns:
+		list[str]: The subset of ``remote_configs`` whose parsed TOML
+			contains ``check_in_config``.
+	"""
+	out: list[str] = []
+	for config in remote_configs:
+		config_data = read_toml_file_from_url_or_path(config, cache)
+		if config_data is not None and check_in_config in config_data:
+			out.append(config)
+
+	return out
 
 def check_for_updates() -> tuple[bool, str, dict]:
 	logger = logging.getLogger(__name__)

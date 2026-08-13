@@ -15,6 +15,8 @@ supported_file_types = ["*.hex", "*.bin"]
 # Settings relating to how the progress bar gets updated
 method = "regex"
 
+regex_method = "normal"
+
 num_steps = 50
 # This is a list of values that increment the progress bar. It starts with the first item and each time it matches that 
 # item in the output terminal, it increments the progress bar and moves to the next item.

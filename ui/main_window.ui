@@ -260,16 +260,18 @@
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="actionOpen_File"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
-     <string>Edit</string>
+     <string>&amp;Edit</string>
     </property>
-    <addaction name="actionAdd_External_Flashing_Tool"/>
-    <addaction name="actionAdd_External_Board_Directory"/>
+    <addaction name="actionRemote_Configurations"/>
+    <addaction name="actionGithubPAT"/>
+    <addaction name="separator"/>
+    <addaction name="action_Reload_App"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
@@ -283,7 +285,7 @@
   </widget>
   <action name="actionOpen_File">
    <property name="text">
-    <string>Open</string>
+    <string>&amp;Open</string>
    </property>
   </action>
   <action name="actionAdd_External_Flashing_Tool">
@@ -299,6 +301,21 @@
   <action name="actionCheck_for_Updates">
    <property name="text">
     <string>Check for &amp;Updates</string>
+   </property>
+  </action>
+  <action name="action_Reload_App">
+   <property name="text">
+    <string>&amp;Reload App</string>
+   </property>
+  </action>
+  <action name="actionGithubPAT">
+   <property name="text">
+    <string>&amp;Github Personal Access Token</string>
+   </property>
+  </action>
+  <action name="actionRemote_Configurations">
+   <property name="text">
+    <string>Remote &amp;Configurations</string>
    </property>
   </action>
  </widget>

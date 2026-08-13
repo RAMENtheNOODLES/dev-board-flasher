@@ -1,20 +1,23 @@
-name: Release on merge to main
+name: Build and Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    env:
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -29,6 +32,7 @@ jobs:
           echo "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Fail if release already exists
+        if: github.ref_name == 'main'
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,6 +62,15 @@ jobs:
           echo "$venvPath\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "VIRTUAL_ENV=$venvPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Cache Nuitka compilation cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-
+            nuitka-${{ runner.os }}-
+
       - name: make compile
         shell: bash
         run: make compile
@@ -71,6 +84,7 @@ jobs:
           Compress-Archive -Path build\* -DestinationPath "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" -ErrorAction Stop
 
       - name: Create GitHub release
+        if: github.ref_name == 'main'
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,3 +93,11 @@ jobs:
             "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" `
             --title "${{ steps.version.outputs.tag }}" `
             --generate-notes
+
+      - name: Upload build artifact
+        if: github.ref_name == 'develop'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-board-flasher-${{ steps.version.outputs.version }}-windows
+          path: dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip
+          retention-days: 14
