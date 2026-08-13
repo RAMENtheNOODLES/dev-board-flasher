@@ -1,4 +1,5 @@
 from .wiz_logger import WizLogger
+from .stored_settings import StoredSettings
 
 import tomllib, requests, subprocess, sys, os, ctypes
 from pathlib import Path

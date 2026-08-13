@@ -87,6 +87,15 @@ Boards and flashing tools don't have to live inside the app's built-in `config/`
 - **Edit > Add External Board Directory** opens a folder picker for an external folder of board TOML files.
 - **Edit > Add External Flashing Tool Directory** opens a folder picker for an external folder of flashing tool TOML files.
 
-Each TOML file in the selected folder is loaded in addition to (not instead of) the boards/tools bundled in `config/boards` and `config/flashing_tools`. After picking a folder, the app restarts automatically to pick up the new configuration files.
+Each TOML file in the selected folder is loaded in addition to (not instead of) the boards/tools bundled in `config/boards` and `config/flashing_tools`. After picking a folder, the app restarts automatically to pick up the new configuration files. You can also trigger this restart manually from **Edit > Reload App**.
 
 The selected paths are remembered between launches (stored via `QSettings` under the `CookieJAR`/`wizlog` organization/application name). To stop using an external folder, pick a different one, or clear the corresponding value from your OS's settings storage (e.g. the Windows Registry under `HKEY_CURRENT_USER\Software\CookieJAR\wizlog`).
+
+## Remembered Session State
+
+Beyond the external directories above, the app remembers the following between launches (via `QSettings`, see `src/utils/wiz_utils/stored_settings.py`) so it reopens the way you left it:
+
+- The selected board.
+- The selected flash tool settings preset.
+- The selected baud rate.
+- The last firmware file chosen (via the file picker or drag-and-drop).

@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.4.0-alpha"
+version = "0.5.0-alpha"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    {name = "Carter Rommelfanger", email = "carter.rommelfanger@generac.com"}
+    {name = "Carter Rommelfanger", email = "github@cookiejar499.me"}
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/carter-rommelfanger/dev-board-flasher"
+Repository = "https://github.com/RAMENtheNOODLES/dev-board-flasher"
 
 [project.optional-dependencies]
 dev = [
@@ -59,6 +59,7 @@ files = [
     "src/utils/flashing_tools/cli_flashing_tool.py",
     "src/utils/flashing_tools/esp32.py",
     "src/utils/wiz_utils/__init__.py",
+    "src/utils/wiz_utils/stored_settings.py",
     "src/utils/wiz_utils/updater.py",
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",

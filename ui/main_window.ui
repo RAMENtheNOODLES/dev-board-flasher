@@ -270,6 +270,8 @@
     </property>
     <addaction name="actionAdd_External_Flashing_Tool"/>
     <addaction name="actionAdd_External_Board_Directory"/>
+    <addaction name="separator"/>
+    <addaction name="action_Reload_App"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
@@ -299,6 +301,11 @@
   <action name="actionCheck_for_Updates">
    <property name="text">
     <string>Check for &amp;Updates</string>
+   </property>
+  </action>
+  <action name="action_Reload_App">
+   <property name="text">
+    <string>&amp;Reload App</string>
    </property>
   </action>
  </widget>

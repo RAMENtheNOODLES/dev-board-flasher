@@ -7,9 +7,11 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog
 from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon
 
-from utils.wiz_utils import WizLogger, get_config_path, Updater
+from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings
 import logging
 import logging.config
+
+from pathlib import Path
 
 import tomllib
 
@@ -20,6 +22,9 @@ from ui_main_window import Ui_MainWindow
 
 import fonts_rc
 
+# Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
+# MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
+# after picking a new external board/tool directory).
 EXIT_CODE_RESTART = -523904
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -27,19 +32,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	Wires together the generated Qt UI, the board configuration cache, and
 	the serial port/monitor controls, and handles drag-and-drop of firmware
-	files onto the window.
+	files onto the window. The selected board, flash tool settings preset,
+	baud rate, and firmware file are persisted via :class:`StoredSettings`
+	and restored the next time the app is launched.
 
 	Attributes:
 		configurer (BoardConfigurer): Discovers and caches available board
 			configurations.
-		file_name (str): Path to the firmware file currently selected for
+		flash_file (str): Path to the firmware file currently selected for
 			upload.
 		serial (QSerialPort): Serial port used for flashing and the serial
 			monitor.
 	"""
 
 	def __init__(self):
-		"""Initializes the main window, loads UI resources, and wires up signals."""
+		"""Initializes the main window, loads UI resources, wires up signals,
+		and restores the board, flash tool settings, baud rate, and firmware
+		file cached in :class:`StoredSettings` from the previous session."""
 		super().__init__()
 		self.setupUi(self) # Binds the primary main window layout
 
@@ -74,7 +83,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logger.debug(f"Ext Tools Dir: {ext_tools}")
 
 		self.configurer = BoardConfigurer(str(ext_tools), str(ext_boards))
-		self.file_name = ""
+		self.flash_file = ""
 		self.serial = QSerialPort()
 		self.updater = Updater()
 
@@ -97,6 +106,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.sendTXDataButton.clicked.connect(self.send_serial_data)
 		self.serialTXBox.returnPressed.connect(self.send_serial_data)
 		self.serial.errorOccurred.connect(self.handle_serial_error)
+		self.baudRateBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_BAUD_RATE.set(self.baudRateBox.currentIndex()))
+		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.flashToolSettings.currentIndex()))
+
+		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
 
 		self.actionAdd_External_Board_Directory.triggered.connect(self.browse_board_folder)
 		self.actionAdd_External_Flashing_Tool.triggered.connect(self.browse_tool_folder)
@@ -105,6 +118,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logText.clear()
 		self.logText.setFontPointSize(8)
 		self.check_can_upload()
+
+		# retrieve cached board selection
+		board = StoredSettings.CHOSEN_BOARD.get()
+		self.logger.debug(f"Chosen Board IDX: {board}")
+		if (board != ""):
+			self.boardSelect.setCurrentIndex(int(board))
+
 		self.update_selected_board()
 
 		config_path = get_config_path()
@@ -114,6 +134,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.ver = self.config["project"]["version"]
 			self.versionLabel.setText(f"v{self.ver}")
 			self.check_for_updates_btn()
+
+		# get cached file to flash
+		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get()
+		if (file_path_str != ""):
+			self.flash_file = str(Path(file_path_str).resolve()).replace("\\", "/")
+		else:
+			self.flash_file = ""
+
+		self.fileName.setText(self.flash_file)
+
+		# pick chosen baud_rate
+		br = StoredSettings.CHOSEN_BAUD_RATE.get()
+
+		self.logger.debug(f"Chosen buad rate IDX: {br}")
+
+		if (br != ""):
+			self.baudRateBox.setCurrentIndex(int(br))
 		
 	def update_selected_board(self):
 		"""Updates the currently selected board from the board select dropdown.
@@ -123,14 +160,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		``flashToolSettings`` with the newly selected board's flasher's
 		available settings presets (from
 		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_settings`),
-		then re-evaluates whether the upload button should be enabled.
+		restoring the previously chosen preset from
+		:data:`StoredSettings.CHOSEN_TOOL_SETTING`, persists the new board
+		index to :data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates
+		whether the upload button should be enabled.
 		"""
-		self.selected_board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
+		board_idx = self.boardSelect.currentIndex()
+		self.selected_board = self.configurer.get_board_cache()[board_idx]
+		# update flash tool settings
+		tool_settings = StoredSettings.CHOSEN_TOOL_SETTING.get()
+		self.logger.debug(f"Chosen tool setting IDX: {tool_settings}")
+
 		self.flashToolSettings.clear()
 		if self.selected_board is not None:
 			settings = self.selected_board.Flasher.get_settings()
 			self.logger.debug(f"Updating board settings: {settings}")
 			self.flashToolSettings.addItems(settings)
+			self.flashToolSettings.setCurrentIndex(int(tool_settings))
+
+			StoredSettings.CHOSEN_BOARD.set(board_idx)
+			self.logger.debug(f"Setting chosen board idx: {board_idx}")
 		self.check_can_upload()
 
 	def check_for_updates_btn(self):
@@ -178,8 +227,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def dropEvent(self, event: QDropEvent):
 		"""Handles a file being dropped onto the window.
 
-		Selects the first dropped file as the firmware file to upload and
-		updates the UI to reflect the new selection.
+		Selects the first dropped file as the firmware file to upload,
+		updates the UI to reflect the new selection, and persists it to
+		:data:`StoredSettings.CACHED_FILE_TO_FLASH`.
 
 		Args:
 			event (QDropEvent): The drop event containing the dropped mime
@@ -190,16 +240,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			files = [url.toLocalFile() for url in event.mimeData().urls()]
 			self.logger.debug("Dropped files:", files)
 			# Update any labels or fields you designed here
-			self.file_name = files[0]
+			self.flash_file = files[0]
 
-			self.fileName.setText(self.file_name)
+			self.fileName.setText(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
 			self.check_can_upload()
 
 	def browse_files(self):
 		"""Opens a file picker dialog for selecting a firmware file to upload.
 
-		Updates the file name label and re-evaluates whether the upload
-		button should be enabled based on the selection.
+		Defaults to the previously selected file, if any. Updates the file
+		name label, persists the selection to
+		:data:`StoredSettings.CACHED_FILE_TO_FLASH`, and re-evaluates
+		whether the upload button should be enabled.
 		"""
 		board = self.configurer.get_board_cache()[self.boardSelect.currentIndex()]
 
@@ -210,17 +263,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		allowed_files = allowed_files.rstrip()
 
-		self.file_name, _ = QFileDialog.getOpenFileName(
+		self.flash_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			"",
+			self.flash_file,
 			f"Binary Files ({allowed_files});; All Files (*)"
 		)
 
-		if self.file_name:
-			self.fileName.setText(self.file_name)
+		if self.flash_file:
+			self.fileName.setText(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
 
-			self.logger.debug(f"File ready for upload: {self.file_name}")
+			self.logger.debug(f"File ready for upload: {self.flash_file}")
 
 		self.check_can_upload()
 
@@ -297,7 +351,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			board.Flasher.set_progress_bar(self.progressBar)
 
 			self.uploadBoardButton.setEnabled(False)
-			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.file_name, self.flashToolSettings.currentText())
+			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText())
 			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):
