@@ -6,6 +6,8 @@ from PySide6.QtCore import QProcess
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QApplication, QTextEdit, QProgressBar
 
+from ..wiz_utils import read_toml_file_from_url_or_path
+
 import tomllib
 
 import logging
@@ -114,10 +116,16 @@ class BaseFlashingTool:
 		"""Loads ``config_file`` and sets up the underlying QProcess.
 
 		Args:
-			config_file (str): Path to the tool's configuration TOML file.
+			config_file (str): Local path or GitHub URL of the tool's
+				configuration TOML file (see
+				:func:`wiz_utils.read_toml_file_from_url_or_path`).
 				Populates ``name``, ``supported_file_types``, ``boards``,
 				``tool_loc``, ``custom_settings``, and the progress-bar
 				settings described in the class docstring.
+
+		Raises:
+			RuntimeError: If ``config_file`` couldn't be read (e.g. a failed
+				remote fetch).
 		"""
 		# 3. Process Setup
 		self.process = QProcess()
@@ -133,8 +141,9 @@ class BaseFlashingTool:
 
 		self._ansi_format = QTextCharFormat()
 
-		with open(config_file, "rb") as f:
-			self.config_data = tomllib.load(f)
+		self.config_data = read_toml_file_from_url_or_path(config_file)
+		if self.config_data is None:
+			raise RuntimeError("Failed to read config data...")
 
 		self.name = self.config_data["tool_name"]
 		self.supported_file_types: list[str] = self.config_data["tool_settings"]["supported_file_types"]

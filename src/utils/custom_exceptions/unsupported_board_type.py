@@ -1,5 +1,10 @@
-from ..board_utils import BoardType
-from ..flashing_tools import BaseFlashingTool
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from ..board_utils import BoardType
+	from ..flashing_tools import BaseFlashingTool
 
 class UnsupportedBoardType(Exception):
 	"""Raised when a flasher does not support a type of board.

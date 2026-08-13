@@ -21,17 +21,18 @@ class StoredSettings(Enum):
 	CHOSEN_BAUD_RATE = "baud_rate"
 	CHOSEN_BOARD = "selected_board"
 	CHOSEN_TOOL_SETTING = "tool_setting"
+	REMOTE_CONFIGS = "remote_configs"
 
-	def get(self) -> Any:
+	def get(self, default_val: Any = None) -> Any:
 		"""Retrieves this setting's stored value.
 
 		Returns:
-			Any: The stored value, or ``""`` if nothing has been saved yet.
+			Any: The stored value, or ``None`` if nothing has been saved yet.
 		"""
 		logger = logging.getLogger(__name__)
 		settings = QSettings()
 
-		out = settings.value(self.value, "")
+		out = settings.value(self.value, default_val)
 		logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out}")
 		return out
 
