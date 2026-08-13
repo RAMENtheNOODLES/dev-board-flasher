@@ -18,7 +18,8 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QTransform)
 from PySide6.QtWidgets import (QAbstractScrollArea, QApplication, QComboBox, QFormLayout,
     QLabel, QMainWindow, QMenu, QMenuBar,
-    QPlainTextEdit, QSizePolicy, QStatusBar, QWidget)
+    QPlainTextEdit, QPushButton, QSizePolicy, QStatusBar,
+    QWidget)
 
 class Ui_CANViewer(object):
     def setupUi(self, CANViewer):
@@ -51,26 +52,31 @@ class Ui_CANViewer(object):
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.channelSelect)
 
-        self.plainTextEdit = QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit.setObjectName(u"plainTextEdit")
-        self.plainTextEdit.setAcceptDrops(False)
-        self.plainTextEdit.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
-        self.plainTextEdit.setUndoRedoEnabled(False)
-        self.plainTextEdit.setReadOnly(True)
+        self.canLogs = QPlainTextEdit(self.centralwidget)
+        self.canLogs.setObjectName(u"canLogs")
+        self.canLogs.setAcceptDrops(False)
+        self.canLogs.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.canLogs.setUndoRedoEnabled(False)
+        self.canLogs.setReadOnly(True)
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.plainTextEdit)
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.canLogs)
 
         self.label_3 = QLabel(self.centralwidget)
         self.label_3.setObjectName(u"label_3")
 
         self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_3)
 
-        self.plainTextEdit_2 = QPlainTextEdit(self.centralwidget)
-        self.plainTextEdit_2.setObjectName(u"plainTextEdit_2")
-        self.plainTextEdit_2.setReadOnly(True)
-        self.plainTextEdit_2.setBackgroundVisible(False)
+        self.deviceInfo = QPlainTextEdit(self.centralwidget)
+        self.deviceInfo.setObjectName(u"deviceInfo")
+        self.deviceInfo.setReadOnly(True)
+        self.deviceInfo.setBackgroundVisible(False)
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.plainTextEdit_2)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.deviceInfo)
+
+        self.connectButton = QPushButton(self.centralwidget)
+        self.connectButton.setObjectName(u"connectButton")
+
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.connectButton)
 
         CANViewer.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(CANViewer)
@@ -96,9 +102,10 @@ class Ui_CANViewer(object):
         self.action_Load_DBC.setText(QCoreApplication.translate("CANViewer", u"&Load DBC", None))
         self.label_2.setText(QCoreApplication.translate("CANViewer", u"Device", None))
         self.label.setText(QCoreApplication.translate("CANViewer", u"Channel", None))
-        self.plainTextEdit.setDocumentTitle(QCoreApplication.translate("CANViewer", u"CAN Output", None))
+        self.canLogs.setDocumentTitle(QCoreApplication.translate("CANViewer", u"CAN Output", None))
         self.label_3.setText(QCoreApplication.translate("CANViewer", u"Device Information", None))
-        self.plainTextEdit_2.setPlaceholderText(QCoreApplication.translate("CANViewer", u"No device found", None))
+        self.deviceInfo.setPlaceholderText(QCoreApplication.translate("CANViewer", u"No device found", None))
+        self.connectButton.setText(QCoreApplication.translate("CANViewer", u"Connect", None))
         self.menu_File.setTitle(QCoreApplication.translate("CANViewer", u"&File", None))
     # retranslateUi
 

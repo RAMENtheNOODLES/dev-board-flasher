@@ -20,6 +20,7 @@ import tomllib
 from ui_main_window import Ui_MainWindow
 from github_token_ui import GithubTokenUI
 from remote_configs import RemoteConfigs
+from can_viewer import CANViewer
 
 import fonts_rc
 
@@ -388,6 +389,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.logger.error(f"Error: {error}")
 			self.toggle_connection()
 
+	def open_can_viewer(self):
+
+		if self.canViewer is None:
+			self.canViewer = CANViewer()
+
+		self.canViewer.show()
+		self.canViewer.activateWindow()
+
 	def load(self):
 		"""Runs startup behind an :class:`AdvancedSplashScreen`, then shows the window.
 
@@ -475,6 +484,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
 
 		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)
+		self.actionCANLib_Kvaser.triggered.connect(self.open_can_viewer)
 
 	def get_cached_settings(self):
 		"""Restores the previously selected board, firmware file, and baud rate from :class:`StoredSettings`."""
@@ -513,6 +523,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def misc(self):
 		"""Handles the remaining one-off startup steps that don't fit the other load tasks."""
+		self.canViewer = None
 		self.refresh_serial_ports()
 		self.vignette.raise_()
 		self.installEventFilter(self)

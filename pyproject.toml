@@ -45,6 +45,7 @@ testpaths = ["tests"]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/can_viewer.py",
     "src/deployment/main.build/scons-debug.py",
     "src/github_token_ui.py",
     "src/main.py",

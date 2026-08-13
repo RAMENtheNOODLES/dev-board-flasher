@@ -69,6 +69,41 @@ class CAN:
 		"""Return every currently connected CAN device."""
 		return list(canlib.connected_devices())
 
+	@staticmethod
+	def list_devices_with_channels() -> list[tuple[str, int, list[int]]]:
+		"""Return every currently connected CAN device as its product name,
+		serial number, and the local channel numbers available on it."""
+		canlib_can = _canlib_can()
+
+		devices: list[tuple[str, int, list[int]]] = []
+		device_index: dict[tuple, int] = {}
+
+		channel_number = 0
+		while True:
+			try:
+				data = canlib_can.ChannelData(channel_number)
+				ean = data.card_upc_no
+				serial = data.card_serial_no
+				name = data.devdescr_ascii
+				chan_no_on_card = data.chan_no_on_card
+			except canlib_can.CanNotFound:
+				break
+			except canlib_can.exceptions.CanError as e:
+				if e.canERRstatus == canlib_can.enums.Error.NOCARD:
+					channel_number += 1
+					continue
+				raise
+
+			key = (ean, serial)
+			if key not in device_index:
+				device_index[key] = len(devices)
+				devices.append((name, serial, []))
+			devices[device_index[key]][2].append(chan_no_on_card)
+
+			channel_number += 1
+
+		return devices
+
 	@property
 	def is_open(self) -> bool:
 		return self._channel is not None

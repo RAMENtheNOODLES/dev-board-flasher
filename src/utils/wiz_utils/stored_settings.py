@@ -23,6 +23,9 @@ class StoredSettings(Enum):
 	CHOSEN_TOOL_SETTING = "tool_setting"
 	REMOTE_CONFIGS = "remote_configs"
 
+	# CAN Settings
+	CAN_DBC_FILE = "dbc_file"
+
 	def get(self, default_val: Any = None) -> Any:
 		"""Retrieves this setting's stored value.
 
