@@ -221,3 +221,4 @@ __marimo__/
 .claude
 *.xml
 src/deployment
+*.sqlite

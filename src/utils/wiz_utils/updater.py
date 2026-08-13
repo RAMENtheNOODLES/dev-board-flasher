@@ -1,5 +1,5 @@
 from . import download_update, check_for_updates, find_asset, apply_update, get_current_exe_path
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtWidgets import QMessageBox
 import zipfile, os, sys
 import logging
@@ -34,21 +34,26 @@ class Updater(QThread):
 			# main.py, and apply_update() would overwrite it. Self-update is
 			# only safe for packaged (Nuitka-compiled) builds.
 			self.logger.warning(f"Update {latest_version} available, but self-update is disabled in dev mode.")
-			QMessageBox.information(
-				None,
-				"Update App",
-				f"A new version is available ({latest_version}), but self-update isn't supported when running from source. Please pull the latest changes instead."
-			)
+			msg = QMessageBox()
+			msg.setIcon(QMessageBox.Icon.Information)
+			msg.setWindowTitle("Update App")
+			msg.setText(f"A new version is available ({latest_version}), but self-update isn't supported when running from source. Please pull the latest changes instead.")
+			msg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+			msg.exec()
 			return
 
 		if can_update:
-			result = QMessageBox.question(
-				None,
+			msg = QMessageBox(			
+				QMessageBox.Icon.Information,
 				"Update App",
 				f"A new version is available ({latest_version}), would you like to update?",
 				QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-				QMessageBox.StandardButton.No
+				None, Qt.WindowType.WindowStaysOnTopHint
 			)
+
+			msg.setDefaultButton(QMessageBox.StandardButton.No)
+
+			result = msg.exec()
 
 			if result == QMessageBox.StandardButton.Yes:
 				self.logger.info("Updating app...")
