@@ -6,6 +6,7 @@ DESIGNER = pyside6-designer
 UIC      = pyside6-uic
 RCC      = pyside6-rcc
 DEPLOY   = pyside6-deploy
+RELOADIUM = reloadium
 
 # Directories
 UI_DIR    = ui
@@ -48,6 +49,11 @@ rcc: $(PY_R_FILES)
 # Run the app (Automatically compiles any changed .ui components first)
 run: all
 	$(PYTHON) $(MAIN_APP)
+
+# Run the app with reloadium, which hot_reloads the app on any standard code changes
+# Does not work with Python versions >=3.11
+dev_run: all
+	$(RELOADIUM) run $(MAIN_APP)
 
 # --------------------------------------------------------------------
 # STANDALONE EXECUTABLE

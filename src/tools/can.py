@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Iterator, Optional, Union, Generator, Any
 
 import canlib
 
 if TYPE_CHECKING:
 	import canlib.canlib as canlib_can
 	import canlib.kvadblib as kvadblib
+	from canlib.kvadblib.message import Message
 
 DecodedFrame = dict[str, object]
 
@@ -67,6 +68,7 @@ class CAN:
 	@staticmethod
 	def list_devices() -> list[canlib.Device]:
 		"""Return every currently connected CAN device."""
+		_canlib_can().enumerate_hardware()
 		return list(canlib.connected_devices())
 
 	@staticmethod
@@ -74,6 +76,7 @@ class CAN:
 		"""Return every currently connected CAN device as its product name,
 		serial number, and the local channel numbers available on it."""
 		canlib_can = _canlib_can()
+		canlib_can.enumerate_hardware()
 
 		devices: list[tuple[str, int, list[int]]] = []
 		device_index: dict[tuple, int] = {}
@@ -89,7 +92,7 @@ class CAN:
 			except canlib_can.CanNotFound:
 				break
 			except canlib_can.exceptions.CanError as e:
-				if e.canERRstatus == canlib_can.enums.Error.NOCARD:
+				if e.canERRstatus == canlib_can.enums.Error.NOCARD: # pyright: ignore[reportAttributeAccessIssue]
 					channel_number += 1
 					continue
 				raise
@@ -97,12 +100,21 @@ class CAN:
 			key = (ean, serial)
 			if key not in device_index:
 				device_index[key] = len(devices)
-				devices.append((name, serial, []))
-			devices[device_index[key]][2].append(chan_no_on_card)
+				devices.append((name, serial, [])) # pyright: ignore[reportArgumentType]
+			devices[device_index[key]][2].append(chan_no_on_card) # pyright: ignore[reportArgumentType]
 
 			channel_number += 1
 
 		return devices
+
+	@staticmethod
+	def check_for_libraries() -> bool:
+		try:
+			_canlib_can()
+
+			return True
+		except FileNotFoundError:
+			return False
 
 	@property
 	def is_open(self) -> bool:
@@ -112,16 +124,65 @@ class CAN:
 	def has_dbc(self) -> bool:
 		return self._dbc is not None
 
+	@property
+	def get_dbc_messages(self) -> Generator[Message, Any, None]|None:
+		if self._dbc is not None:
+			return self._dbc.messages()
+		else:
+			return None
+
+	def dbc_message_signals(self) -> dict[int, list[str]]:
+		"""Return ``{message_id: [signal names]}`` for the loaded DBC file.
+
+		Walking every message/signal via kvadblib is comparatively slow for a
+		DBC of any real size, so callers driving a GUI should run this off
+		the main thread (see ``CanWorker``) rather than call it directly from
+		a UI event handler.
+		"""
+		if self._dbc is None:
+			return {}
+
+		return {msg.id: [signal.name for signal in msg.signals()] for msg in self._dbc.messages()}
+
 	def load_dbc(self, dbc_path: Union[str, Path]) -> None:
 		"""Load a DBC file, used to decode/encode messages by name."""
 		dbc_path = Path(dbc_path)
 		if not dbc_path.is_file():
-			raise FileNotFoundError(f"DBC file not found: {dbc_path}")
+			self.logger.warning(f"DBC file not found: {dbc_path}")
+			self._dbc = None
+			return
 
 		self.logger.debug("Loading DBC file %s", dbc_path)
 		if self._dbc is not None:
 			self._dbc.close()
 		self._dbc = _kvadblib().Dbc(filename=str(dbc_path))
+
+	def set_device(self, device: canlib.Device) -> None:
+		"""Change the target device, reopening the channel if it is currently open."""
+		reopen = self.is_open
+		if reopen:
+			self.close()
+		self.device = device
+		if reopen:
+			self.open()
+
+	def set_channel(self, channel: int) -> None:
+		"""Change the channel number, reopening the channel if it is currently open."""
+		reopen = self.is_open
+		if reopen:
+			self.close()
+		self.channel = channel
+		if reopen:
+			self.open()
+
+	def set_bitrate(self, bitrate: "canlib_can.Bitrate") -> None:
+		"""Change the bitrate, reopening the channel if it is currently open."""
+		reopen = self.is_open
+		if reopen:
+			self.close()
+		self.bitrate = bitrate
+		if reopen:
+			self.open()
 
 	def open(self) -> None:
 		"""Open the configured channel on the device and go bus on."""

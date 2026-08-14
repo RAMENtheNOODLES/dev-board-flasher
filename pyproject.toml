@@ -21,7 +21,8 @@ dependencies = [
 	"truststore>=0.9.1",
 	"keyring>=25.7.0",
 	"requests-cache>=1.3.3",
-	"canlib>=1.33.358"
+	"canlib>=1.33.358",
+	"usb-monitor>=1.23"
 ]
 
 [project.urls]
@@ -32,7 +33,8 @@ dev = [
     "pytest>=8.0.0",
 	"Nuitka>=4.1.3",
 	"ImageIO>=2.37.4",
-	"zstandard>=0.25.0"
+	"zstandard>=0.25.0",
+	"reloadium>=1.5.1"
 ]
 
 [tool.ruff]
@@ -45,6 +47,7 @@ testpaths = ["tests"]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/can_logging.py",
     "src/can_viewer.py",
     "src/deployment/main.build/scons-debug.py",
     "src/github_token_ui.py",
@@ -68,9 +71,12 @@ files = [
     "src/utils/flashing_tools/cli_flashing_tool.py",
     "src/utils/flashing_tools/esp32.py",
     "src/utils/wiz_utils/__init__.py",
+    "src/utils/wiz_utils/can_worker.py",
     "src/utils/wiz_utils/github_token.py",
+    "src/utils/wiz_utils/plain_runnable.py",
     "src/utils/wiz_utils/stored_settings.py",
     "src/utils/wiz_utils/updater.py",
+    "src/utils/wiz_utils/usb_worker.py",
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
     "ui/can.ui",

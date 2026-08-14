@@ -1,28 +1,27 @@
-import gc
-import sys
 import ctypes
-import os
-from PySide6.QtCore import QIODevice, QEvent, QSettings, QCoreApplication, Qt
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QSplashScreen, QProgressBar, QLabel
-from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
-from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon, QPixmap, QPalette, QColor
-
-from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings
+import gc
 import logging
 import logging.config
-from utils.board_utils import BoardConfigurer
-
-from pathlib import Path
-
+import os
+import sys
+import threading
 import tomllib
+from pathlib import Path
+from typing import Any, Callable, cast
 
-# Import the auto-generated UI classes created by the Makefile
-from ui_main_window import Ui_MainWindow
+from PySide6.QtCore import QIODevice, QEvent, QCoreApplication, Qt, QThreadPool
+from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon, QPixmap, QPalette, \
+	QColor
+from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
+from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QSplashScreen, QProgressBar, QLabel
+
+from can_viewer import CANViewer
 from github_token_ui import GithubTokenUI
 from remote_configs import RemoteConfigs
-from can_viewer import CANViewer
-
-import fonts_rc
+# Import the auto-generated UI classes created by the Makefile
+from ui_main_window import Ui_MainWindow
+from utils.board_utils import BoardConfigurer
+from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings, USBWorker, PlainRunnable
 
 # Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
 # MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
@@ -390,12 +389,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.toggle_connection()
 
 	def open_can_viewer(self):
-
 		if self.canViewer is None:
-			self.canViewer = CANViewer()
+			self.canViewer = CANViewer(self)
+			worker, _ = self.workers["USB_Monitor"]
+			worker = cast(USBWorker, worker)
+			worker.signals.device_connected.connect(self.canViewer.populate_devices)
+			worker.signals.device_disconnected.connect(self.canViewer.populate_devices)
 
 		self.canViewer.show()
 		self.canViewer.activateWindow()
+
+	def show_about(self):
+		QMessageBox.about(
+			self,
+			"About FlashWiz",
+			f"""<h3> FlashWiz {self.versionLabel.text()} </h3>
+			<p> This app was built using PySide6.</p>
+			<p> Designed by Carter Rommelfanger</p>"""
+		)
+
+	def closeEvent(self, event):
+		"""Signals background workers to stop and closes any other open windows before exiting.
+
+		Args:
+			event (QCloseEvent): The close event to accept once cleanup is done.
+		"""
+		for worker, _ in self.workers.values():
+			worker.stop_event.set()
+
+		self.thread_pool.waitForDone()
+
+		for window in QApplication.topLevelWidgets():
+			if window != self:  # Avoid closing yourself twice
+				window.close()
+
+		event.accept()
 
 	def load(self):
 		"""Runs startup behind an :class:`AdvancedSplashScreen`, then shows the window.
@@ -423,8 +451,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			(self.configure_boards, "Configuring Boards..."),
 			(self.connect_functions, "Connecting functions to event triggers..."),
 			(self.get_cached_settings, "Loading cached settings..."),
+			(self.check_for_optional_libraries, "Checking for optional settings..."),
 			(self.misc, "Misc..."),
-			(self.check_for_updates, "Checking for updates...")
+			(self.setup_background_workers, "Setting up background workers..."),
+			(self.check_for_updates, "Checking for updates..."),
 		]
 
 		total_tasks = len(load_tasks)
@@ -434,6 +464,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			splash.update_progress(step_number, total_tasks, message)
 
 			task_function()
+
+		splash.showMessage("Done Loading App!", Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter, Qt.GlobalColor.black)
+
+		self.logger.info("Done Loading App!")
 
 		self.show()
 		splash.finish(self)
@@ -480,6 +514,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.flashToolSettings.currentIndex()))
 		self.actionGithubPAT.triggered.connect(self.open_github_token_ui)
 		self.actionRemote_Configurations.triggered.connect(self.open_remote_configs_ui)
+		self.action_About.triggered.connect(self.show_about)
 
 		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
 
@@ -520,6 +555,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.ver = self.config["project"]["version"]
 			self.versionLabel.setText(f"v{self.ver}")
 			self.check_for_updates_btn()
+
+	def check_for_optional_libraries(self):
+		from tools.can import CAN
+
+		has_kvaser_libraries = CAN.check_for_libraries()
+
+		self.actionCANLib_Kvaser.setEnabled(has_kvaser_libraries)
+
+	def setup_background_workers(self):
+		# Thread Functions
+
+		def startUSBWorker(thread: QThreadPool, worker: USBWorker) -> None:
+			worker.signals.device_connected.connect(self.refresh_serial_ports)
+			worker.signals.device_disconnected.connect(self.refresh_serial_ports)
+			thread.start(worker)
+
+		self.thread_pool = QThreadPool.globalInstance()
+
+		self.workers: dict[str, tuple[PlainRunnable, Callable[[QThreadPool, Any], None]]] = {
+			"USB_Monitor": (USBWorker("USB_Monitor", threading.Event()), startUSBWorker)
+		}
+
+		for (obj, setup_worker) in self.workers.values():
+			setup_worker(self.thread_pool, obj)
 
 	def misc(self):
 		"""Handles the remaining one-off startup steps that don't fit the other load tasks."""
