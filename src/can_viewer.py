@@ -8,13 +8,26 @@ from PySide6.QtCore import QCoreApplication, QTimer, QThreadPool
 from PySide6.QtGui import QFontDatabase, QIcon, QFont
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 from canlib import Device
-from canlib.canlib.enums import Bitrate
 from canlib.frame import Frame
 
 from tools.can import CAN
 from ui_can import Ui_CANViewer
 from utils.wiz_utils.can_worker import CanWorker
 from utils.wiz_utils.stored_settings import StoredSettings
+
+
+def _bitrate_enum():
+	"""Lazily import canlib.canlib.enums.Bitrate.
+
+	Mirrors tools.can._canlib_can(): importing canlib.canlib eagerly loads
+	the Kvaser CANlib DLL immediately, which would otherwise crash the
+	whole app at import time (before __init__'s own "CANLib drivers not
+	installed" handling ever gets a chance to run) on a machine that
+	doesn't have it installed.
+	"""
+	from canlib.canlib.enums import Bitrate
+
+	return Bitrate
 
 
 class CANViewer(QMainWindow, Ui_CANViewer):
@@ -28,7 +41,6 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 	"""
 
 	_CAN_SAMPLE_RATE: int = 100
-	_BIT_RATES = [Bitrate.BITRATE_125K, Bitrate.BITRATE_250K, Bitrate.BITRATE_500K, Bitrate.BITRATE_1M]
 
 	def __init__(self, parent = None) -> None:
 		super().__init__(parent)
@@ -57,6 +69,8 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 
 		# init CAN
 		try:
+			Bitrate = _bitrate_enum()
+			self._BIT_RATES = [Bitrate.BITRATE_125K, Bitrate.BITRATE_250K, Bitrate.BITRATE_500K, Bitrate.BITRATE_1M]
 			self.populate_devices()
 			self.populate_channels()
 		except FileNotFoundError:
@@ -70,6 +84,10 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			)
 
 			self.close()
+			# Without this, the rest of __init__ still runs against a window
+			# that's already being closed and never finished initializing
+			# (self._BIT_RATES/self.dev never got set), crashing anyway.
+			return
 
 		# configure function connections
 		self.can = None

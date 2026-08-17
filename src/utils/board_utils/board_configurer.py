@@ -16,7 +16,9 @@ from .flasher_finder import FlasherFinder
 
 import logging
 
-type Cache = dict[str, dict | None]
+# Plain assignment, not the `type X = ...` statement (PEP 695): that syntax
+# requires Python 3.12+, but pyproject.toml declares `requires-python = ">=3.10"`.
+Cache = dict[str, dict | None]
 
 class BoardConfigurer:
 	"""Finds and configures boards automatically
