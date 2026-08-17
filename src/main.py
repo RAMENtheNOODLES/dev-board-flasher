@@ -544,7 +544,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def configure_boards(self):
 		"""Builds the board cache (local + :data:`StoredSettings.REMOTE_CONFIGS`) and populates the board dropdown."""
-		self.configurer = BoardConfigurer(StoredSettings.REMOTE_CONFIGS.get([]))
+		self.configurer = BoardConfigurer(StoredSettings.REMOTE_CONFIGS.secure_get([]))
 		self.flash_file = ""
 		self.serial = QSerialPort()
 		self.updater = Updater()

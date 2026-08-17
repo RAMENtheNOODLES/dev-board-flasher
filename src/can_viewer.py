@@ -1,5 +1,8 @@
+import csv
 import logging
 import threading
+from datetime import datetime
+from typing import Optional, TextIO
 
 from PySide6.QtCore import QCoreApplication, QTimer, QThreadPool
 from PySide6.QtGui import QFontDatabase, QIcon, QFont
@@ -78,13 +81,21 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.worker: CanWorker | None = None
 		self.stop_event: threading.Event | None = None
 
+		self.log_file: Optional[TextIO] = None
+		self.log_writer = None
+		self.actionSto_p_Logging.setEnabled(False)
+
 		self.device_check_timer = QTimer(self)
 		self.device_check_timer.timeout.connect(self.populate_devices)
 		self.action_Load_DBC.triggered.connect(self.load_dbc)
+		self.action_Start_Logging.triggered.connect(self.start_logging)
+		self.actionSto_p_Logging.triggered.connect(self.stop_logging)
+		self.useDBCCheckBox.toggled.connect(self._sync_dbc)
 		self.deviceSelect.currentIndexChanged.connect(self.populate_channels)
 		self.deviceSelect.currentIndexChanged.connect(self.selected_device)
 		self.connectButton.clicked.connect(self.connect_can)
 		self.channelSelect.currentIndexChanged.connect(self.selected_channel)
+		self.baudRateComboBox.currentIndexChanged.connect(self.selected_baudrate)
 
 		self.dbc_file = StoredSettings.CAN_DBC_FILE.get(None)
 
@@ -106,7 +117,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 	def selected_device(self, index):
 		self.dev = CAN.list_devices()[index]
 		if self.can is None and self.dev is not None:
-			self.can = CAN(self.dev, 0, self.dbc_file, self._BIT_RATES[self.baudRateComboBox.currentIndex()])
+			self.can = CAN(self.dev, 0, self._dbc_file_if_enabled(), self._BIT_RATES[self.baudRateComboBox.currentIndex()])
 		else:
 			# These should not be none due to the if statement above
 			assert self.can is not None
@@ -116,10 +127,24 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.can.set_device(self.dev)
 			self.can.set_bitrate(self._BIT_RATES[self.baudRateComboBox.currentIndex()])
 
+		self._update_device_info()
+
+	def _update_device_info(self) -> None:
+		"""Refreshes the read-only info box with the selected device's `probe_info()`.
+
+		Falls back to the box's placeholder text ("No device found") when
+		nothing is selected.
+		"""
+		self.deviceInfo.setPlainText(self.dev.probe_info() if self.dev is not None else "")
+
 	def selected_channel(self, index):
 		self.channel = index
 		if self.can is not None:
 			self.can.set_channel(index)
+
+	def selected_baudrate(self, index):
+		if self.can is not None:
+			self.can.set_bitrate(self._BIT_RATES[index])
 
 	def load_dbc(self):
 		dbc_file, _ = QFileDialog.getOpenFileName(
@@ -135,11 +160,26 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.dbc_file = dbc_file
 		StoredSettings.CAN_DBC_FILE.set(self.dbc_file)
 
+		# Walking the loaded DBC's messages/signals is slow enough that it
+		# belongs off the GUI thread (see CanWorker.run), so the tree itself
+		# only refreshes on the next connect rather than here.
+		self._sync_dbc()
+
+	def _dbc_file_if_enabled(self) -> Optional[str]:
+		"""Returns the loaded DBC path, or `None` if "Use DBC File" is unchecked."""
+		return self.dbc_file if self.useDBCCheckBox.isChecked() else None
+
+	def _sync_dbc(self) -> None:
+		"""Applies the current DBC path (or lack of one) to `self.can`.
+
+		Called whenever a new DBC file is loaded or the "Use DBC File"
+		checkbox is toggled, so decoding (`CAN.decode`) reflects the current
+		choice immediately. The tree's known-message list only comes from
+		`CanWorker.run`'s startup walk though, so it still only picks up the
+		change on the next connect.
+		"""
 		if self.can is not None:
-			# Walking the loaded DBC's messages/signals is slow enough that
-			# it belongs off the GUI thread (see CanWorker.run), so the tree
-			# itself only refreshes on the next connect rather than here.
-			self.can.load_dbc(self.dbc_file)
+			self.can.load_dbc(self._dbc_file_if_enabled())
 
 	def connect_can(self):
 		if self.worker is not None and self.stop_event is not None:
@@ -151,10 +191,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			return
 
 		if self.can is None and self.dev is not None:
-			self.can = CAN(self.dev, self.channel, self.dbc_file, self._BIT_RATES[self.baudRateComboBox.currentIndex()])
+			self.can = CAN(self.dev, self.channel, self._dbc_file_if_enabled(), self._BIT_RATES[self.baudRateComboBox.currentIndex()])
 
 		# This should never be none due to the if statement above
 		assert self.can is not None
+
+		self.logger.debug(f"CAN Baudrate: {self._BIT_RATES[self.baudRateComboBox.currentIndex()]}")
 
 		self.connectButton.setEnabled(False)
 		self.connectButton.setText("Connecting...")
@@ -193,17 +235,52 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.logger.error(f"CAN error: {message}")
 		QMessageBox.critical(self, "CAN Error", message)
 
-	def _on_frame_received(self, msg):
-		if isinstance(msg, Frame):
-			self.logger.debug(f"CAN msg: {msg.data.hex(" ", 4)}")
-			self.canLogs.update_tree(msg.id)
-		else:
-			self.logger.debug(f"CAN msg: {msg.get("data")}")
+	def _on_frame_received(self, frame: Frame):
+		decoded = self.can.decode(frame) if self.can is not None else None
+		self.canLogs.update_tree(frame, self.channel, decoded)
+
+		if self.log_writer is not None:
+			self.log_writer.writerow([
+				datetime.now().isoformat(timespec="milliseconds"),
+				self.channel,
+				f"0x{frame.id:X}",
+				frame.dlc,
+				frame.data.hex(" "),
+				"; ".join(f"{name}={value}" for name, value in decoded.items()) if decoded is not None else "",
+			])
+
+	def start_logging(self) -> None:
+		log_path, _ = QFileDialog.getSaveFileName(
+			self,
+			"Start Logging",
+			"",
+			"CSV Files (*.csv)"
+		)
+
+		if not log_path:
+			return
+
+		self.log_file = open(log_path, "w", newline="", encoding="utf-8")
+		self.log_writer = csv.writer(self.log_file)
+		self.log_writer.writerow(["Timestamp", "Channel", "ID", "DLC", "Data", "Decoded"])
+
+		self.action_Start_Logging.setEnabled(False)
+		self.actionSto_p_Logging.setEnabled(True)
+
+	def stop_logging(self) -> None:
+		if self.log_file is not None:
+			self.log_file.close()
+		self.log_file = None
+		self.log_writer = None
+
+		self.action_Start_Logging.setEnabled(True)
+		self.actionSto_p_Logging.setEnabled(False)
 
 	def closeEvent(self, event):
 		if self.stop_event is not None:
 			self.stop_event.set()
 
 		self.thread_pool.waitForDone()
+		self.stop_logging()
 
 		event.accept()

@@ -105,8 +105,6 @@ class BoardConfigurer:
 				``config/boards`` and ``remote_configs``.
 		"""
 
-		logger = logging.getLogger(__name__)
-
 		board_confs: list[str] = BoardConfigurer.get_board_configs(remote_configs, cache)
 
 		current_dir = Path(__file__).resolve().parent

@@ -16,10 +16,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QFormLayout, QHeaderView,
-    QLabel, QMainWindow, QMenu, QMenuBar,
-    QPlainTextEdit, QPushButton, QSizePolicy, QStatusBar,
-    QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplication, QCheckBox,
+    QComboBox, QFormLayout, QHeaderView, QLabel,
+    QMainWindow, QMenu, QMenuBar, QPlainTextEdit,
+    QPushButton, QSizePolicy, QStatusBar, QWidget)
 
 from can_logging import CanLogging
 
@@ -30,6 +30,10 @@ class Ui_CANViewer(object):
         CANViewer.resize(800, 600)
         self.action_Load_DBC = QAction(CANViewer)
         self.action_Load_DBC.setObjectName(u"action_Load_DBC")
+        self.action_Start_Logging = QAction(CANViewer)
+        self.action_Start_Logging.setObjectName(u"action_Start_Logging")
+        self.actionSto_p_Logging = QAction(CANViewer)
+        self.actionSto_p_Logging.setObjectName(u"actionSto_p_Logging")
         self.centralwidget = QWidget(CANViewer)
         self.centralwidget.setObjectName(u"centralwidget")
         self.formLayout = QFormLayout(self.centralwidget)
@@ -57,24 +61,29 @@ class Ui_CANViewer(object):
         self.label_3 = QLabel(self.centralwidget)
         self.label_3.setObjectName(u"label_3")
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label_3)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_3)
 
         self.deviceInfo = QPlainTextEdit(self.centralwidget)
         self.deviceInfo.setObjectName(u"deviceInfo")
+        self.deviceInfo.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.deviceInfo.setReadOnly(True)
         self.deviceInfo.setBackgroundVisible(False)
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.deviceInfo)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.deviceInfo)
 
         self.connectButton = QPushButton(self.centralwidget)
         self.connectButton.setObjectName(u"connectButton")
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.connectButton)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.connectButton)
 
         self.canLogs = CanLogging(self.centralwidget)
         self.canLogs.setObjectName(u"canLogs")
+        self.canLogs.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.canLogs.setAlternatingRowColors(True)
+        self.canLogs.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.canLogs.setSortingEnabled(True)
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.canLogs)
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.canLogs)
 
         self.baudRateComboBox = QComboBox(self.centralwidget)
         self.baudRateComboBox.addItem("")
@@ -90,6 +99,18 @@ class Ui_CANViewer(object):
 
         self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.baudRateLabel)
 
+        self.useDBCCheckBox = QCheckBox(self.centralwidget)
+        self.useDBCCheckBox.setObjectName(u"useDBCCheckBox")
+        self.useDBCCheckBox.setChecked(True)
+        self.useDBCCheckBox.setTristate(False)
+
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.useDBCCheckBox)
+
+        self.useDBCLabel = QLabel(self.centralwidget)
+        self.useDBCLabel.setObjectName(u"useDBCLabel")
+
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.useDBCLabel)
+
         CANViewer.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(CANViewer)
         self.menubar.setObjectName(u"menubar")
@@ -103,6 +124,8 @@ class Ui_CANViewer(object):
 
         self.menubar.addAction(self.menu_File.menuAction())
         self.menu_File.addAction(self.action_Load_DBC)
+        self.menu_File.addAction(self.action_Start_Logging)
+        self.menu_File.addAction(self.actionSto_p_Logging)
 
         self.retranslateUi(CANViewer)
 
@@ -115,6 +138,8 @@ class Ui_CANViewer(object):
     def retranslateUi(self, CANViewer):
         CANViewer.setWindowTitle(QCoreApplication.translate("CANViewer", u"CAN Viewer", None))
         self.action_Load_DBC.setText(QCoreApplication.translate("CANViewer", u"&Load DBC...", None))
+        self.action_Start_Logging.setText(QCoreApplication.translate("CANViewer", u"&Start Logging", None))
+        self.actionSto_p_Logging.setText(QCoreApplication.translate("CANViewer", u"Sto&p Logging", None))
         self.label_2.setText(QCoreApplication.translate("CANViewer", u"Device", None))
         self.label.setText(QCoreApplication.translate("CANViewer", u"Channel", None))
         self.label_3.setText(QCoreApplication.translate("CANViewer", u"Device Information", None))
@@ -126,6 +151,7 @@ class Ui_CANViewer(object):
         self.baudRateComboBox.setItemText(3, QCoreApplication.translate("CANViewer", u"1000 kBits/s", None))
 
         self.baudRateLabel.setText(QCoreApplication.translate("CANViewer", u"Baud Rate", None))
+        self.useDBCLabel.setText(QCoreApplication.translate("CANViewer", u"Use DBC File", None))
         self.menu_File.setTitle(QCoreApplication.translate("CANViewer", u"&File", None))
     # retranslateUi
 

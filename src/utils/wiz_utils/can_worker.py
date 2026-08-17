@@ -19,7 +19,7 @@ class CanWorkerSignals(QObject):
 	# Emitted after the channel has been closed, whether that was requested
 	# via stop_event or forced by an error
 	disconnected = Signal()
-	# Emitted for each frame/decoded message read off the bus
+	# Emitted for each raw frame read off the bus
 	frame_received = Signal(object)
 	# Emitted with a message if opening or reading the channel raises
 	error = Signal(str)

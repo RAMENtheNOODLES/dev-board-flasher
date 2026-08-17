@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from diskcache import Cache
 import os, sys
 import keyring
@@ -22,6 +22,8 @@ if sys.platform == "win32":
 _SETTINGS_FILE = "flash_wiz_settings.ini"
 _SERVICE_NAME = "dev-board-flasher"
 _USERNAME = "flashwiz_stored_settings_key"
+
+_SECURE_SETTINGS = ["remote_configs"]
 
 def universal_to_bytes(variable):
 	"""Best-effort coercion of ``variable`` to ``bytes``, for feeding to :class:`~cryptography.fernet.Fernet`.
@@ -109,7 +111,7 @@ class StoredSettings(Enum):
 		"""Returns whether the Fernet key used by :meth:`secure_get`/:meth:`secure_set` has been generated yet."""
 		return keyring.get_password(_SERVICE_NAME, _USERNAME) is not None
 
-	def secure_set(self, value: Any, ttl_seconds: int) -> None:
+	def secure_set(self, value: Any, ttl_seconds: int|None = None) -> None:
 		"""Encrypts and persists a value for this setting with a time limit.
 
 		Unlike :meth:`set`, the value is JSON-encoded then encrypted with a
@@ -230,7 +232,10 @@ class StoredSettings(Enum):
 			for key in registry_settings.allKeys():
 				value = registry_settings.value(key)
 				logger.info(f"Transferring key ({key}) with value ({value}).")
-				file_settings.setValue(key, value)
+				if key in _SECURE_SETTINGS:
+					StoredSettings[key].secure_set(value)
+				else:
+					file_settings.setValue(key, value)
 
 			file_settings.sync()
 

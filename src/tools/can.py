@@ -52,6 +52,9 @@ class CAN:
 
 		self._channel: Optional["canlib_can.Channel"] = None
 		self._dbc: Optional["kvadblib.Dbc"] = None
+		# Set once receive() has warned about bus error frames, so it only
+		# logs the first one per connection instead of once per error.
+		self._warned_about_errors = False
 
 		if dbc_path is not None:
 			self.load_dbc(dbc_path)
@@ -131,12 +134,15 @@ class CAN:
 		else:
 			return None
 
-	def dbc_message_signals(self) -> dict[int, tuple[str, list[str]]]:
-		"""Return ``{message_id: (message_name, [signal names])}`` for the loaded DBC file.
+	def dbc_message_signals(self) -> dict[int, tuple[str, list[tuple[str, str]]]]:
+		"""Return ``{message_id: (message_name, [(signal_name, unit), ...])}`` for the loaded DBC file.
 
 		Keyed by numeric message ID since that's what incoming frames are
 		matched against, but the message name is carried alongside it since
-		that's what should actually be shown to the user.
+		that's what should actually be shown to the user. Each signal's unit
+		(``""`` if the DBC doesn't define one) is included alongside its name
+		since it's static per-signal metadata, unlike its decoded value which
+		only exists once a matching frame has actually been received.
 
 		Walking every message/signal via kvadblib is comparatively slow for a
 		DBC of any real size, so callers driving a GUI should run this off
@@ -146,19 +152,35 @@ class CAN:
 		if self._dbc is None:
 			return {}
 
-		return {msg.id: (msg.name, [signal.name for signal in msg.signals()]) for msg in self._dbc.messages()}
+		# Message.id sets bit 31 (kvadblib.MessageFlag.EXT) as an extended-id
+		# marker, but a received Frame's raw .id never has that bit set (its
+		# extended-ness lives in .flags instead), so it has to be stripped
+		# here to match what frames are actually keyed by.
+		ext_flag = _kvadblib().MessageFlag.EXT
+		return {
+			msg.id & ~ext_flag: (msg.name, [(signal.name, signal.unit) for signal in msg.signals()])
+			for msg in self._dbc.messages()
+		}
 
-	def load_dbc(self, dbc_path: Union[str, Path]) -> None:
-		"""Load a DBC file, used to decode/encode messages by name."""
+	def load_dbc(self, dbc_path: Optional[Union[str, Path]]) -> None:
+		"""Load a DBC file, used to decode/encode messages by name.
+
+		Pass `None` to clear any currently loaded DBC, e.g. when the caller
+		wants to stop decoding without having a replacement file to load.
+		"""
+		if self._dbc is not None:
+			self._dbc.close()
+			self._dbc = None
+
+		if dbc_path is None:
+			return
+
 		dbc_path = Path(dbc_path)
 		if not dbc_path.is_file():
 			self.logger.warning(f"DBC file not found: {dbc_path}")
-			self._dbc = None
 			return
 
 		self.logger.debug("Loading DBC file %s", dbc_path)
-		if self._dbc is not None:
-			self._dbc.close()
 		self._dbc = _kvadblib().Dbc(filename=str(dbc_path))
 
 	def set_device(self, device: canlib.Device) -> None:
@@ -203,6 +225,7 @@ class CAN:
 		channel.setBusParams(self.bitrate)
 		channel.busOn()
 		self._channel = channel
+		self._warned_about_errors = False
 
 	def close(self) -> None:
 		"""Go bus off and close the channel, if open."""
@@ -246,32 +269,56 @@ class CAN:
 
 		self._channel.write(frame)
 
-	def receive(self, timeout: int = 500) -> Optional[Union["canlib.Frame", DecodedFrame]]:
-		"""Read a single frame.
+	def receive(self, timeout: int = 500) -> Optional["canlib.Frame"]:
+		"""Read a single raw frame, or `None` on timeout.
 
-		Returns the decoded signals as a dict if a DBC is loaded and the frame's
-		message is known, the raw `canlib.Frame` if not, or `None` on timeout.
+		Always returns the raw `canlib.Frame` (id/dlc/data/timestamp intact)
+		regardless of whether a DBC is loaded, since callers that need the
+		frame's own fields (e.g. building a live message list) shouldn't lose
+		them just because its signals happen to be decodable. Use `decode` to
+		additionally get its signal values.
 		"""
 		if self._channel is None:
 			raise RuntimeError("CAN channel is not open")
 
+		canlib_can = _canlib_can()
 		try:
 			frame = self._channel.read(timeout=timeout)
-		except _canlib_can().CanNoMsg:
+		except canlib_can.CanNoMsg:
 			return None
 
+		if frame.flags & canlib_can.MessageFlag.ERROR_FRAME:
+			# The driver synthesizes these instead of a real frame when the
+			# channel can't successfully read anything off the wire - most
+			# often a bitrate mismatch with the actual bus. Treat like a
+			# timeout rather than surfacing it as bus traffic.
+			if not self._warned_about_errors:
+				self._warned_about_errors = True
+				self.logger.warning(
+					"Receiving CAN bus error frames instead of real traffic - "
+					"the channel's bitrate (%s) likely doesn't match the bus.",
+					self.bitrate,
+				)
+			return None
+
+		return frame
+
+	def decode(self, frame: "canlib.Frame") -> Optional[DecodedFrame]:
+		"""Decode `frame`'s signals using the loaded DBC file.
+
+		Returns `None` if no DBC is loaded or the frame's message isn't in it.
+		"""
 		if self._dbc is None:
-			return frame
+			return None
 
 		try:
 			bound_message = self._dbc.interpret(frame)
 		except _kvadblib().KvdNoMessage:
-			self.logger.debug("No DBC message found for frame id 0x%X", frame.id)
-			return frame
+			return None
 
 		return {signal.name: signal.phys for signal in bound_message}
 
-	def __iter__(self) -> Iterator[Union["canlib.Frame", DecodedFrame]]:
+	def __iter__(self) -> Iterator["canlib.Frame"]:
 		"""Yield frames as they arrive until the channel is closed."""
 		while self.is_open:
 			frame = self.receive()

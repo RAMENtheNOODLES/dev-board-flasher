@@ -48,6 +48,7 @@ class Ui_MainWindow(object):
         self.actionCANLib_Kvaser.setObjectName(u"actionCANLib_Kvaser")
         self.action_Elf_Parser = QAction(MainWindow)
         self.action_Elf_Parser.setObjectName(u"action_Elf_Parser")
+        self.action_Elf_Parser.setVisible(False)
         self.action_About = QAction(MainWindow)
         self.action_About.setObjectName(u"action_About")
         self.actionClear_All_Settings = QAction(MainWindow)

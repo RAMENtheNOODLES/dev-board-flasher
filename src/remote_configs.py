@@ -35,7 +35,7 @@ class RemoteConfigs(QDialog):
 		self.ui.browseConfigBtn.clicked.connect(self.browse_files)
 		self.ui.removeConfigsBtn.clicked.connect(self.remove_items)
 
-		configs: list[str] = StoredSettings.REMOTE_CONFIGS.get([])
+		configs: list[str] = StoredSettings.REMOTE_CONFIGS.secure_get([])
 
 		for config in configs:
 			item = QListWidgetItem(config)
@@ -69,7 +69,7 @@ class RemoteConfigs(QDialog):
 		"""Persists the current list of rows to :data:`StoredSettings.REMOTE_CONFIGS` and closes the dialog."""
 		configs_list: list[str] = [self.ui.configsList.item(i).text() for i in range(self.ui.configsList.count())]
 
-		StoredSettings.REMOTE_CONFIGS.set(configs_list)
+		StoredSettings.REMOTE_CONFIGS.secure_set(configs_list)
 
 		super().accept()
 

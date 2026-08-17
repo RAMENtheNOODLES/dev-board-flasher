@@ -35,15 +35,18 @@
     <item row="1" column="1">
      <widget class="QComboBox" name="channelSelect"/>
     </item>
-    <item row="4" column="0">
+    <item row="5" column="0">
      <widget class="QLabel" name="label_3">
       <property name="text">
        <string>Device Information</string>
       </property>
      </widget>
     </item>
-    <item row="4" column="1">
+    <item row="5" column="1">
      <widget class="QPlainTextEdit" name="deviceInfo">
+      <property name="sizeAdjustPolicy">
+       <enum>QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents</enum>
+      </property>
       <property name="readOnly">
        <bool>true</bool>
       </property>
@@ -55,15 +58,28 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
+    <item row="6" column="1">
      <widget class="QPushButton" name="connectButton">
       <property name="text">
        <string>Connect</string>
       </property>
      </widget>
     </item>
-    <item row="3" column="1">
-     <widget class="CanLogging" name="canLogs"/>
+    <item row="4" column="1">
+     <widget class="CanLogging" name="canLogs">
+      <property name="editTriggers">
+       <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
     <item row="2" column="1">
      <widget class="QComboBox" name="baudRateComboBox">
@@ -99,6 +115,23 @@
       </property>
      </widget>
     </item>
+    <item row="3" column="1">
+     <widget class="QCheckBox" name="useDBCCheckBox">
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+      <property name="tristate">
+       <bool>false</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="useDBCLabel">
+      <property name="text">
+       <string>Use DBC File</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -115,6 +148,8 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Load_DBC"/>
+    <addaction name="action_Start_Logging"/>
+    <addaction name="actionSto_p_Logging"/>
    </widget>
    <addaction name="menu_File"/>
   </widget>
@@ -122,6 +157,16 @@
   <action name="action_Load_DBC">
    <property name="text">
     <string>&amp;Load DBC...</string>
+   </property>
+  </action>
+  <action name="action_Start_Logging">
+   <property name="text">
+    <string>&amp;Start Logging</string>
+   </property>
+  </action>
+  <action name="actionSto_p_Logging">
+   <property name="text">
+    <string>Sto&amp;p Logging</string>
    </property>
   </action>
  </widget>

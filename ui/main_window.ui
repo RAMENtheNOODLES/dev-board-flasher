@@ -338,6 +338,9 @@
    <property name="text">
     <string>&amp;Elf Parser</string>
    </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
   </action>
   <action name="action_About">
    <property name="text">
