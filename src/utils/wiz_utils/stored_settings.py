@@ -41,8 +41,15 @@ def universal_to_bytes(variable):
 		return variable.encode('utf-8')
 	# 3. Handle integers
 	if isinstance(variable, int) and not isinstance(variable, bool):
-		# Calculates exactly how many bytes the integer needs
-		byte_length = (variable.bit_length() + 7) // 8 or 1
+		# bit_length() excludes the sign bit, so a value needs a full extra
+		# byte once its magnitude's bit_length lands exactly on a byte
+		# boundary (128, 255, -129, ...) - the previous "+ 7 // 8" rounding
+		# didn't account for that and could overflow to_bytes for those
+		# values. This always allocates enough (occasionally one byte more
+		# than the true minimum for a negative power-of-two boundary like
+		# -128, which still round-trips correctly, just not maximally
+		# compact) rather than risk under-allocating again.
+		byte_length = variable.bit_length() // 8 + 1
 		return variable.to_bytes(byte_length, byteorder='big', signed=True)
 	# 4. Handle JSON-serializable types (lists, dicts, floats, bools)
 	try:

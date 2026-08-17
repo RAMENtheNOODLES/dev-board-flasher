@@ -33,6 +33,9 @@ Repository = "https://github.com/RAMENtheNOODLES/dev-board-flasher"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+	"pytest-qt>=4.4.0",
+	"pytest-mock>=3.14.0",
+	"ruff>=0.8.0",
 	"Nuitka>=4.1.3",
 	"ImageIO>=2.37.4",
 	"zstandard>=0.25.0",
@@ -44,6 +47,10 @@ line-length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+markers = [
+	"integration: needs pytest-qt/heavier fixtures, excluded from the fast local loop",
+]
 
 [tool.pyside6-project]
 files = [
