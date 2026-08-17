@@ -159,7 +159,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		board_idx = self.boardSelect.currentIndex()
 		self.selected_board = self.configurer.get_board_cache()[board_idx]
 		# update flash tool settings
-		tool_settings = StoredSettings.CHOSEN_TOOL_SETTING.get()
+		tool_settings = StoredSettings.CHOSEN_TOOL_SETTING.get(0)
 		self.logger.debug(f"Chosen tool setting IDX: {tool_settings}")
 
 		self.flashToolSettings.clear()
@@ -478,14 +478,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 	def get_cached_settings(self):
 		"""Restores the previously selected board, firmware file, and baud rate from :class:`StoredSettings`."""
-		board = StoredSettings.CHOSEN_BOARD.get()
+		board = StoredSettings.CHOSEN_BOARD.get("")
 		self.logger.debug(f"Chosen Board IDX: {board}")
 		if (board != ""):
 			self.boardSelect.setCurrentIndex(int(board))
 
 		self.update_selected_board()
 
-		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get()
+		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get("")
 		if (file_path_str != ""):
 			self.flash_file = str(Path(file_path_str).resolve()).replace("\\", "/")
 		else:
@@ -494,7 +494,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.fileName.setText(self.flash_file)
 
 		# pick chosen baud_rate
-		br = StoredSettings.CHOSEN_BAUD_RATE.get()
+		br = StoredSettings.CHOSEN_BAUD_RATE.get("")
 
 		self.logger.debug(f"Chosen buad rate IDX: {br}")
 
