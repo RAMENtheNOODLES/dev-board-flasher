@@ -36,7 +36,12 @@ class GithubToken:
 
 	The token is kept in the OS credential store (via ``keyring``) rather
 	than ``QSettings``/the registry, since it's a secret rather than a
-	plain app setting.
+	plain app setting. Requests made via :meth:`fetch_file` go through a
+	shared ``requests_cache`` session (``_SESSION``) that caches responses
+	for 10 minutes, so repeatedly re-reading the same remote config (e.g.
+	on every board-cache refresh) doesn't re-hit the GitHub API each time;
+	:meth:`clear_cache` drops that cache early when a fresher read is
+	needed.
 	"""
 
 	_BLOB_URL_RE = re.compile(
@@ -168,3 +173,14 @@ class GithubToken:
 			raise RemoteConfigError(f"Failed to fetch {url!r}: {e}{detail}") from e
 
 		return response.content
+
+	@staticmethod
+	def clear_cache() -> None:
+		"""Clears the local HTTP response cache used by :meth:`fetch_file`.
+
+		``fetch_file`` caches GitHub API responses for 10 minutes (see
+		``_SESSION``) so repeated startups/refreshes don't needlessly
+		re-request the same file. This drops those cached responses,
+		forcing the next fetch to hit GitHub again.
+		"""
+		_SESSION.cache.clear()

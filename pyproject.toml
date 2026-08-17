@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.5.1-alpha"
+version = "0.6.0-beta"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,11 @@ dependencies = [
 	"requests>=2.34.2",
 	"truststore>=0.9.1",
 	"keyring>=25.7.0",
-	"requests-cache>=1.3.3"
+	"requests-cache>=1.3.3",
+	"canlib>=1.33.358",
+	"usb-monitor>=1.23",
+	"packaging>=26.3",
+	"diskcache>=5.6.3"
 ]
 
 [project.urls]
@@ -29,9 +33,13 @@ Repository = "https://github.com/RAMENtheNOODLES/dev-board-flasher"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+	"pytest-qt>=4.4.0",
+	"pytest-mock>=3.14.0",
+	"ruff>=0.8.0",
 	"Nuitka>=4.1.3",
 	"ImageIO>=2.37.4",
-	"zstandard>=0.25.0"
+	"zstandard>=0.25.0",
+	"reloadium>=1.5.1"
 ]
 
 [tool.ruff]
@@ -39,15 +47,23 @@ line-length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+markers = [
+	"integration: needs pytest-qt/heavier fixtures, excluded from the fast local loop",
+]
 
 [tool.pyside6-project]
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/can_logging.py",
+    "src/can_viewer.py",
     "src/deployment/main.build/scons-debug.py",
     "src/github_token_ui.py",
     "src/main.py",
     "src/remote_configs.py",
+    "src/tools/__init__.py",
+    "src/tools/can.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",
     "src/utils/board_utils/board_configurer.py",
@@ -64,11 +80,16 @@ files = [
     "src/utils/flashing_tools/cli_flashing_tool.py",
     "src/utils/flashing_tools/esp32.py",
     "src/utils/wiz_utils/__init__.py",
+    "src/utils/wiz_utils/cache_helper.py",
+    "src/utils/wiz_utils/can_worker.py",
     "src/utils/wiz_utils/github_token.py",
+    "src/utils/wiz_utils/plain_runnable.py",
     "src/utils/wiz_utils/stored_settings.py",
     "src/utils/wiz_utils/updater.py",
+    "src/utils/wiz_utils/usb_worker.py",
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
+    "ui/can.ui",
     "ui/github_token.ui",
     "ui/main_window.ui",
     "ui/remote_configs.ui",

@@ -1,15 +1,26 @@
-from .wiz_logger import WizLogger
-from .stored_settings import StoredSettings
-from .github_token import GithubToken
-
-import tomllib, requests, subprocess, sys, os, ctypes
-from pathlib import Path
-import logging
-import truststore
-from ..custom_exceptions.remote_config_error import RemoteConfigError
+import ctypes
 import io
-
+import logging
+import os
+import requests
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
 from typing import Any
+
+import truststore
+from packaging import version
+
+from .can_worker import CanWorker
+from .github_token import GithubToken
+from .plain_runnable import PlainRunnable
+from .stored_settings import StoredSettings
+from .usb_worker import USBWorker
+from .wiz_logger import WizLogger
+from .cache_helper import CacheHelper
+from ..custom_exceptions.remote_config_error import RemoteConfigError
+
 
 # Verify TLS certs against the OS trust store (e.g. Windows) instead of only
 # certifi's public bundle, so requests still works behind a corporate
@@ -94,11 +105,27 @@ def get_remote_configs(remote_configs: list[str], check_in_config: str, cache: d
 	return out
 
 def check_for_updates() -> tuple[bool, str, dict]:
+	"""Compares the installed version against the latest GitHub release.
+
+	Versions are compared with :func:`packaging.version.parse` (PEP 440),
+	not string/tuple equality, so pre-release/local-version segments (e.g.
+	``0.6.0-beta``) sort correctly against final releases instead of just
+	being treated as "different from" every other version.
+
+	Returns:
+		tuple[bool, str, dict]: ``(can_update, latest_version, release)``.
+			``can_update`` is ``True`` only if the latest release's version
+			is strictly newer than the installed one. ``latest_version`` is
+			its normalized (PEP 440) version string. ``release`` is the raw
+			GitHub release API response. On any failure to check (network
+			error, malformed response, missing config), returns
+			``(False, "", {})``.
+	"""
 	logger = logging.getLogger(__name__)
 	logger.info("Getting config and checking for updates")
 	with open(get_config_path(), "rb") as f:
 		config = tomllib.load(f)
-		ver = config["project"]["version"]
+		ver = version.parse(config["project"]["version"])
 		repo = config["project"]["urls"]["Repository"]
 		owner_repo = repo.rstrip("/").removeprefix("https://github.com/")
 		api_url = f"https://api.github.com/repos/{owner_repo}/releases/latest"
@@ -107,11 +134,12 @@ def check_for_updates() -> tuple[bool, str, dict]:
 			response.raise_for_status()
 			latest_version = response.json()["tag_name"]
 			latest_version = latest_version.lstrip("v")
+			latest_version = version.parse(latest_version)
 
 			logger.debug(f"Latest version: {latest_version}")
 
-			if (ver != latest_version):
-				return (True, latest_version, response.json())
+			if (latest_version > ver):
+				return (True, latest_version.public, response.json())
 			else:
 				return (False, "", {})
 		except (requests.RequestException, ValueError, KeyError) as e:
