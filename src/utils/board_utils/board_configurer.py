@@ -1,6 +1,6 @@
 import tomllib
 from pathlib import Path
-import io
+import os
 
 from .board_config import BoardConfig
 from .board_type import get_board_type
@@ -9,12 +9,14 @@ from ..wiz_utils.github_token import GithubToken
 from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
 from ..custom_exceptions.remote_config_error import RemoteConfigError
 from ..custom_exceptions.unknown_flasher_type import UnknownFlasherType
+from ..wiz_utils.cache_helper import CacheHelper
 
 # Import all flashing tool variants
 from .flasher_finder import FlasherFinder
 
 import logging
 
+type Cache = dict[str, dict | None]
 
 class BoardConfigurer:
 	"""Finds and configures boards automatically
@@ -38,12 +40,26 @@ class BoardConfigurer:
 		self.refresh_cache()
 
 	def refresh_cache(self):
-		"""Rebuilds the board cache from the board configuration files on disk."""
+		"""Rebuilds the board cache from the board configuration files on disk.
+
+		``config_cache`` starts from ``CacheHelper.BOARD_CACHE``'s
+		integrity-checked on-disk contents (see
+		:class:`wiz_utils.cache_helper.CacheHelper`) rather than an empty
+		dict, then is written back at the end of the refresh. This memoizes
+		each board/flashing-tool config file's parsed TOML both across
+		boards within this refresh and across refreshes/app launches, so a
+		remote URL already resolved isn't re-fetched on every startup.
+		"""
 		# Shared across every board below so each remote URL is fetched and
 		# parsed at most once per refresh, instead of once per board.
-		config_cache: dict[str, dict | None] = {}
+		config_cache: Cache = CacheHelper.BOARD_CACHE.get({})
+
+		self.logger.debug(f"Cache: {config_cache}")
+
 		flasher_finder = FlasherFinder(self.remote_configs, config_cache)
 		boards = self.get_boards(self.remote_configs, config_cache)
+		self.logger.debug(f"Final config: {config_cache}")
+		CacheHelper.BOARD_CACHE.update(config_cache)
 		self._board_cache = [self.read_board_config(board, flasher_finder, config_cache) for board in boards]
 
 	def get_board_cache(self) -> list[BoardConfig|None]:

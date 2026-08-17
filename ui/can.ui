@@ -121,7 +121,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_Load_DBC">
    <property name="text">
-    <string>&amp;Load DBC</string>
+    <string>&amp;Load DBC...</string>
    </property>
   </action>
  </widget>

@@ -131,8 +131,12 @@ class CAN:
 		else:
 			return None
 
-	def dbc_message_signals(self) -> dict[int, list[str]]:
-		"""Return ``{message_id: [signal names]}`` for the loaded DBC file.
+	def dbc_message_signals(self) -> dict[int, tuple[str, list[str]]]:
+		"""Return ``{message_id: (message_name, [signal names])}`` for the loaded DBC file.
+
+		Keyed by numeric message ID since that's what incoming frames are
+		matched against, but the message name is carried alongside it since
+		that's what should actually be shown to the user.
 
 		Walking every message/signal via kvadblib is comparatively slow for a
 		DBC of any real size, so callers driving a GUI should run this off
@@ -142,7 +146,7 @@ class CAN:
 		if self._dbc is None:
 			return {}
 
-		return {msg.id: [signal.name for signal in msg.signals()] for msg in self._dbc.messages()}
+		return {msg.id: (msg.name, [signal.name for signal in msg.signals()]) for msg in self._dbc.messages()}
 
 	def load_dbc(self, dbc_path: Union[str, Path]) -> None:
 		"""Load a DBC file, used to decode/encode messages by name."""

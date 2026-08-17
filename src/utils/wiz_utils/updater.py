@@ -26,7 +26,22 @@ class Updater(QThread):
 				raise RuntimeError("No .exe found in downloaded zip")
 			return os.path.join(extract_dir, exe_names[0])
 
-	def check_for_updates_and_install(self):
+	def check_for_updates_and_install(self) -> bool:
+		"""Checks GitHub for a newer release and, if one exists, prompts the user to install it.
+
+		When running from source, installing isn't supported (see
+		``extract_zip``/``apply_update``, which patch the running .exe), so
+		the user is only notified a newer version exists rather than
+		prompted to install it. When a compiled build accepts the prompt,
+		the download/install itself happens asynchronously on this
+		``QThread`` (started here, finishing via :meth:`_on_download_finished`).
+
+		Returns:
+			bool: ``True`` if an update was available (regardless of
+				whether the user chose to install it, or whether install is
+				even supported in this run mode), ``False`` if already on
+				the latest version.
+		"""
 		can_update, latest_version, resp = check_for_updates()
 
 		if can_update and "__compiled__" not in globals():
@@ -40,7 +55,7 @@ class Updater(QThread):
 			msg.setText(f"A new version is available ({latest_version}), but self-update isn't supported when running from source. Please pull the latest changes instead.")
 			msg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
 			msg.exec()
-			return
+			return True
 
 		if can_update:
 			msg = QMessageBox(			
@@ -67,6 +82,10 @@ class Updater(QThread):
 				# Extraction/install happens in _on_download_finished once run()
 				# completes the download on the background thread.
 				self.start()
+
+			return True
+		else:
+			return False
 
 	def run(self):
 		try:

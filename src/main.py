@@ -21,7 +21,7 @@ from remote_configs import RemoteConfigs
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
-from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings, USBWorker, PlainRunnable
+from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings, USBWorker, PlainRunnable, CacheHelper, GithubToken
 
 # Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
 # MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
@@ -128,6 +128,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logger = logging.getLogger(__name__)
 		self.load()
 
+	#region Event Functions
+
 	def open_github_token_ui(self):
 		"""Opens the modal dialog for viewing/setting the stored GitHub personal access token."""
 		self.token_ui = GithubTokenUI(self)
@@ -174,9 +176,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.check_can_upload()
 
 	def check_for_updates_btn(self):
-		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it."""
+		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it.
+
+		Unlike the silent check run at startup (see :meth:`check_for_updates`),
+		this is wired to **Help > Check for Updates**, so it also tells the
+		user when they're already up to date rather than doing nothing.
+		"""
 		self.logger.info("Checking for updates")
-		self.updater.check_for_updates_and_install()
+		update = self.updater.check_for_updates_and_install()
+
+		if not update:
+			QMessageBox.information(self, "No Update Available...", "There are currently no updates available...")
 
 	def eventFilter(self, watched, event):
 		"""Handles window resize events to keep overlay widgets in sync.
@@ -425,14 +435,56 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		event.accept()
 
+	def clear_all_settings_btn(self):
+		"""Handles **Tools > Clear All Settings**: confirms, then wipes every stored setting.
+
+		Doesn't restart the app, since the wiped values are only re-read the
+		next time each is fetched (e.g. next launch), not held in memory.
+		"""
+		resp = QMessageBox.critical(
+			self, 
+			"Confirm", 
+			"Are you sure you want to clear ALL settings?",
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+			QMessageBox.StandardButton.Cancel
+		)
+
+		if resp == QMessageBox.StandardButton.Yes:
+			StoredSettings.clear_all_settings()
+
+	def invalidate_cache_btn(self):
+		"""Handles **Edit > Invalidate Cache**: confirms, then clears the board and GitHub response caches.
+
+		Restarts the app (via ``EXIT_CODE_RESTART``) afterward, since the
+		board cache is only rebuilt as part of :meth:`configure_boards`
+		during startup.
+		"""
+		resp = QMessageBox.critical(
+			self, 
+			"Confirm", 
+			"Are you sure you want to invalidate the cache?",
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+			QMessageBox.StandardButton.Cancel
+		)
+		
+		if resp == QMessageBox.StandardButton.Yes:
+			CacheHelper.invalidate_cache()
+			GithubToken.clear_cache()
+			QApplication.exit(EXIT_CODE_RESTART)
+
+	#endregion
+
+	#region Load Functions
+
 	def load(self):
 		"""Runs startup behind an :class:`AdvancedSplashScreen`, then shows the window.
 
-		Executes ``load_tasks`` in order (fonts, board configuration, signal
-		wiring, restoring cached settings, misc window setup, then the
-		update check), advancing the splash screen's progress bar after
-		each one, before showing the main window and closing the splash
-		screen.
+		Executes ``load_tasks`` in order (migrating legacy registry settings
+		to the settings file, fonts, board configuration, signal wiring,
+		restoring cached settings, misc window setup, background workers,
+		then the update check), advancing the splash screen's progress bar
+		after each one, before showing the main window and closing the
+		splash screen.
 		"""
 		# setup splash screen
 		pixmap = QPixmap(":/logo.png")
@@ -444,9 +496,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.setWindowIcon(QIcon(":/logo.png"))
 
 		QCoreApplication.setOrganizationDomain("CookieJAR")
-		QCoreApplication.setApplicationName("wizlog")
+		QCoreApplication.setApplicationName("flashwiz")
 
 		load_tasks = [
+			(lambda: StoredSettings.transfer_settings_to_file(), "Transferring settings to file..."),
 			(self.init_fonts, "Initializing Fonts..."),
 			(self.configure_boards, "Configuring Boards..."),
 			(self.connect_functions, "Connecting functions to event triggers..."),
@@ -463,6 +516,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			step_number = index + 1
 			splash.update_progress(step_number, total_tasks, message)
 
+			self.logger.debug(message)
 			task_function()
 
 		splash.showMessage("Done Loading App!", Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter, Qt.GlobalColor.black)
@@ -484,7 +538,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			# 5. Create a font object and apply it globally to the app
 			global_font = QFont(font_family, 12)  # Family name and default size
 			self.setFont(global_font)
-			self.logger.info("Done Initilaizing Fonts")
+			self.logger.info("Done Initializing Fonts")
 		else:
 			self.logger.error("Error: Could not load font from resources.")
 
@@ -517,6 +571,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.action_About.triggered.connect(self.show_about)
 
 		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
+		self.actionClear_All_Settings.triggered.connect(self.clear_all_settings_btn)
+		self.action_Invalidate_Cache.triggered.connect(self.invalidate_cache_btn)
 
 		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)
 		self.actionCANLib_Kvaser.triggered.connect(self.open_can_viewer)
@@ -554,7 +610,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.config = tomllib.load(f)
 			self.ver = self.config["project"]["version"]
 			self.versionLabel.setText(f"v{self.ver}")
-			self.check_for_updates_btn()
+			self.logger.info("Checking for updates")
+			self.updater.check_for_updates_and_install()
 
 	def check_for_optional_libraries(self):
 		from tools.can import CAN
@@ -590,6 +647,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logText.setFontPointSize(8)
 		self.check_can_upload()
 
+	#endregion
+
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
@@ -611,7 +670,7 @@ if __name__ == "__main__":
 		logger.info(f"Version {ver}")
 		
 		if os.name == 'nt':
-			appid = f"cookiejar.uploadwiz.{ver}" # Custom unique string
+			appid = f"cookiejar.flashwiz.{ver}" # Custom unique string
 			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
 
 		try:

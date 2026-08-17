@@ -8,14 +8,20 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide6.QtCore import (QCoreApplication, QMetaObject, QRect)
-from PySide6.QtGui import (QAction)
-from PySide6.QtWidgets import (QComboBox, QFormLayout, QLabel, QMenu, QMenuBar,
-                               QPlainTextEdit, QPushButton, QStatusBar,
-                               QWidget)
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+    QCursor, QFont, QFontDatabase, QGradient,
+    QIcon, QImage, QKeySequence, QLinearGradient,
+    QPainter, QPalette, QPixmap, QRadialGradient,
+    QTransform)
+from PySide6.QtWidgets import (QApplication, QComboBox, QFormLayout, QHeaderView,
+    QLabel, QMainWindow, QMenu, QMenuBar,
+    QPlainTextEdit, QPushButton, QSizePolicy, QStatusBar,
+    QWidget)
 
 from can_logging import CanLogging
-
 
 class Ui_CANViewer(object):
     def setupUi(self, CANViewer):
@@ -108,7 +114,7 @@ class Ui_CANViewer(object):
 
     def retranslateUi(self, CANViewer):
         CANViewer.setWindowTitle(QCoreApplication.translate("CANViewer", u"CAN Viewer", None))
-        self.action_Load_DBC.setText(QCoreApplication.translate("CANViewer", u"&Load DBC", None))
+        self.action_Load_DBC.setText(QCoreApplication.translate("CANViewer", u"&Load DBC...", None))
         self.label_2.setText(QCoreApplication.translate("CANViewer", u"Device", None))
         self.label.setText(QCoreApplication.translate("CANViewer", u"Channel", None))
         self.label_3.setText(QCoreApplication.translate("CANViewer", u"Device Information", None))

@@ -15,6 +15,15 @@ from utils.wiz_utils.stored_settings import StoredSettings
 
 
 class CANViewer(QMainWindow, Ui_CANViewer):
+	"""Standalone window for connecting to a Kvaser CAN device and viewing/decoding traffic.
+
+	Opened via **Tools > CAN** (see :meth:`main.MainWindow.open_can_viewer`),
+	which reuses a single instance across shows rather than recreating it.
+	Device/channel selection and bus connect/disconnect run on a dedicated
+	:class:`~PySide6.QtCore.QThreadPool` through :class:`CanWorker`, so the
+	blocking CANlib calls don't freeze this window's UI thread.
+	"""
+
 	_CAN_SAMPLE_RATE: int = 100
 	_BIT_RATES = [Bitrate.BITRATE_125K, Bitrate.BITRATE_250K, Bitrate.BITRATE_500K, Bitrate.BITRATE_1M]
 
@@ -61,7 +70,11 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 
 		# configure function connections
 		self.can = None
-		self.thread_pool = QThreadPool.globalInstance()
+		# Dedicated pool, not QThreadPool.globalInstance(): closeEvent()
+		# blocks on waitForDone(), and the global pool also runs the main
+		# window's long-lived USB_Monitor worker, which would make closing
+		# this window hang until the whole app exits.
+		self.thread_pool = QThreadPool(self)
 		self.worker: CanWorker | None = None
 		self.stop_event: threading.Event | None = None
 
@@ -95,6 +108,10 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		if self.can is None and self.dev is not None:
 			self.can = CAN(self.dev, 0, self.dbc_file, self._BIT_RATES[self.baudRateComboBox.currentIndex()])
 		else:
+			# These should not be none due to the if statement above
+			assert self.can is not None
+			assert self.dev is not None
+
 			self.can.set_channel(0)
 			self.can.set_device(self.dev)
 			self.can.set_bitrate(self._BIT_RATES[self.baudRateComboBox.currentIndex()])
@@ -105,14 +122,24 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.can.set_channel(index)
 
 	def load_dbc(self):
-		self.dbc_file, _ = QFileDialog.getOpenFileName(
+		dbc_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
 			StoredSettings.CAN_DBC_FILE.get(""),
 			f"CAN Database Files (*.dbc)"
 		)
 
+		if not dbc_file:
+			return
+
+		self.dbc_file = dbc_file
 		StoredSettings.CAN_DBC_FILE.set(self.dbc_file)
+
+		if self.can is not None:
+			# Walking the loaded DBC's messages/signals is slow enough that
+			# it belongs off the GUI thread (see CanWorker.run), so the tree
+			# itself only refreshes on the next connect rather than here.
+			self.can.load_dbc(self.dbc_file)
 
 	def connect_can(self):
 		if self.worker is not None and self.stop_event is not None:
@@ -123,8 +150,11 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.stop_event.set()
 			return
 
-		if self.can is None:
+		if self.can is None and self.dev is not None:
 			self.can = CAN(self.dev, self.channel, self.dbc_file, self._BIT_RATES[self.baudRateComboBox.currentIndex()])
+
+		# This should never be none due to the if statement above
+		assert self.can is not None
 
 		self.connectButton.setEnabled(False)
 		self.connectButton.setText("Connecting...")
@@ -166,6 +196,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 	def _on_frame_received(self, msg):
 		if isinstance(msg, Frame):
 			self.logger.debug(f"CAN msg: {msg.data.hex(" ", 4)}")
+			self.canLogs.update_tree(msg.id)
 		else:
 			self.logger.debug(f"CAN msg: {msg.get("data")}")
 

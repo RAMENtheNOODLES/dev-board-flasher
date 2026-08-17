@@ -222,3 +222,4 @@ __marimo__/
 *.xml
 src/deployment
 *.sqlite
+*.ini
