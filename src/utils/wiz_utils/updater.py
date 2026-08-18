@@ -117,10 +117,15 @@ class Updater(QThread):
 			self.failed.emit(str(e))
 
 	def _on_download_finished(self, dest_path: str) -> None:
-		"""Extracts the downloaded zip and hands off to :func:`apply_update`. Connected to ``finished_ok``.
+		"""Hands the downloaded installer off to :func:`apply_update`. Connected to ``finished_ok``.
+
+		Deliberately doesn't quit the app itself afterwards - see
+		:func:`apply_update`'s docstring for why staying open and letting
+		Restart Manager close it is required for the update to actually
+		restart the app.
 
 		Args:
-			dest_path (str): Path of the downloaded update zip.
+			dest_path (str): Path of the downloaded ``*-setup.exe`` installer.
 		"""
 		try:
 			self.logger.info(f"Applying update: {dest_path!r}")

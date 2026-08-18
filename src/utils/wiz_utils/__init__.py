@@ -1,7 +1,6 @@
 import io
 import logging
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -205,14 +204,25 @@ def download_update(url: str, dest_path: str, on_progress=None) -> None:
 						on_progress(downloaded / total)
 
 def apply_update(installer_path):
-	"""Launches the downloaded installer silently and exits this process.
+	"""Launches the downloaded installer silently.
 
 	The installer (built with ``CloseApplications``/``RestartApplications``,
 	see ``scripts/installer.iss``) uses Windows Restart Manager to detect
 	that this exe is still running (via its open file lock), force-closes
 	it, reinstalls over the existing install directory, then relaunches it.
-	Does not return: exits this process immediately after handing off to
-	the installer.
+
+	Deliberately does NOT exit (or otherwise close down) this process:
+	``RmRestart`` - what Setup's ``RestartApplications``/``/RESTARTAPPLICATIONS``
+	uses to relaunch closed apps - only restarts applications that were
+	shut down as part of its own Restart Manager session, not just anything
+	matching the exe name. If this process exits on its own right after
+	launching the installer, it races the installer's process-detection
+	phase: if we win that race, Restart Manager finds nothing running and
+	has nothing to restart once install completes, so the app just stays
+	closed. Staying open and letting Restart Manager force-close this
+	process itself is what makes the later auto-restart possible (see the
+	``RegisterApplicationRestart`` call in ``main.py``'s ``__main__`` guard,
+	which opts this process into being restarted by ``RmRestart``).
 
 	Args:
 		installer_path: Path to the downloaded ``*-setup.exe`` installer.
@@ -221,7 +231,6 @@ def apply_update(installer_path):
 		["cmd", "/c", installer_path, "/SP-", "/SILENT", "/NOICONS", "/FORCECLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"],
 		creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
 	)
-	sys.exit(0)
 
 # Imported last: updater.py does `from . import download_update, ...`, which
 # requires those names to already exist in this module's namespace.
