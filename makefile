@@ -7,6 +7,7 @@ UIC      = pyside6-uic
 RCC      = pyside6-rcc
 DEPLOY   = pyside6-deploy
 RELOADIUM = reloadium
+ISCC     = ISCC
 
 # Directories
 UI_DIR    = ui
@@ -29,7 +30,7 @@ MAIN_APP = $(SRC_DIR)/main.py
 # --------------------------------------------------------------------
 # TARGET RULES
 # --------------------------------------------------------------------
-.PHONY: all ui rcc run test design compile project-files clean
+.PHONY: all ui rcc run test ruff ruff-fixall design compile installer project-files clean
 
 # Default: Compiles all individual UI parts and assets
 all: ui rcc project-files
@@ -64,6 +65,21 @@ test:
 	$(PYTHON) -m pytest -q
 
 # --------------------------------------------------------------------
+# LINTING
+# --------------------------------------------------------------------
+# Not run by any other target, and not a CI gate (see tests.yml's
+# report-only lint step) - the existing codebase has a large pre-existing
+# violation count under ruff's default rules. Run manually to see current
+# findings; requires the dev extras: pip install -e ".[dev]"
+ruff:
+	$(PYTHON) -m ruff check .
+
+# Same as `ruff`, but applies every auto-fixable violation in place instead
+# of just reporting them. Still standalone/manual only.
+ruff-fixall:
+	$(PYTHON) -m ruff check --fix .
+
+# --------------------------------------------------------------------
 # STANDALONE EXECUTABLE
 # --------------------------------------------------------------------
 # Compiles a standalone executable from the app (recompiles UI/assets first)
@@ -71,6 +87,17 @@ test:
 compile: all
 	@mkdir -p $(BUILD_DIR)
 	$(DEPLOY) $(MAIN_APP) -c $(SPEC_FILE)
+
+# --------------------------------------------------------------------
+# WINDOWS INSTALLER
+# --------------------------------------------------------------------
+# Builds the standalone exe, then wraps it in an Inno Setup installer.
+# AppVersion is read from pyproject.toml (the same way the release workflow
+# does) and passed to ISCC so scripts/installer.iss can't drift out of sync
+# with the version actually being packaged. Requires Inno Setup's ISCC.exe
+# to be on PATH.
+installer: compile
+	$(ISCC) "/DAppVersion=$(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")" scripts/installer.iss
 
 # --------------------------------------------------------------------
 # PROJECT FILE LIST

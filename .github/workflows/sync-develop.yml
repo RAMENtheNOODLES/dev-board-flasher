@@ -1,0 +1,74 @@
+name: Sync develop with main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  rebase-develop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch develop
+        run: git fetch origin develop
+
+      - name: Check if develop needs rebasing
+        id: check
+        run: |
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebase develop onto main
+        if: steps.check.outputs.needed == 'true'
+        id: rebase
+        run: |
+          git checkout -B develop origin/develop
+          if git rebase origin/main; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            git rebase --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push rebased develop
+        if: steps.check.outputs.needed == 'true' && steps.rebase.outputs.conflict == 'false'
+        run: git push --force-with-lease origin develop
+
+      - name: Open an issue for the conflict
+        if: steps.check.outputs.needed == 'true' && steps.rebase.outputs.conflict == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="develop needs a manual rebase onto main"
+          existing=$(gh issue list --repo "${{ github.repository }}" --state open --json title --jq "[.[] | select(.title == \"$title\")] | length")
+          if [ "$existing" -eq 0 ]; then
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "$title" \
+              --body "Auto-rebasing \`develop\` onto \`main\` (triggered by ${{ github.sha }}) hit a conflict and was aborted, so \`develop\` was left unchanged. Please resolve it manually:
+
+          \`\`\`
+          git checkout develop
+          git rebase main
+          # resolve conflicts, then:
+          git push --force-with-lease
+          \`\`\`"
+          fi
+          exit 1

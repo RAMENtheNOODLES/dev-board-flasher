@@ -1,6 +1,6 @@
+from fixtures.toml_samples import write_tool_toml
 from PySide6.QtWidgets import QProgressBar
 
-from fixtures.toml_samples import write_tool_toml
 from utils.board_utils.board_config import BoardConfig
 from utils.board_utils.board_part_id import BoardPartID
 from utils.board_utils.board_type import BoardType
@@ -18,14 +18,14 @@ def _make_tool(qapp, tmp_path, mocker, **toml_overrides) -> CLIFlashingTool:
 
 
 def _make_board(**overrides) -> BoardConfig:
-	defaults = dict(
-		BoardName="Arduino UNO R3",
-		Flasher=None,
-		BaudRate=115200,
-		PartID=BoardPartID.ATMEGA328P,
-		Type=BoardType.ARDUINO,
-		SupportedFiles=["*.hex"],
-	)
+	defaults = {
+		"BoardName": "Arduino UNO R3",
+		"Flasher": None,
+		"BaudRate": 115200,
+		"PartID": BoardPartID.ATMEGA328P,
+		"Type": BoardType.ARDUINO,
+		"SupportedFiles": ["*.hex"],
+	}
 	defaults.update(overrides)
 	return BoardConfig(**defaults)
 

@@ -13,7 +13,13 @@ A PySide6 desktop application for flashing firmware onto development boards over
 
 ### As a standalone build
 
-The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy`. The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
+The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy` (`make compile`). The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
+
+### As a Windows installer
+
+`make installer` (requires [Inno Setup](https://jrsoftware.org/isinfo.php)'s `ISCC.exe` on `PATH`) wraps the standalone build above in a Windows installer, built from `scripts/installer.iss`. It installs to `%LOCALAPPDATA%\Programs\flashwiz` without requiring admin rights (falling back to the machine-wide `Program Files` if run elevated instead), and adds Start Menu/Desktop shortcuts. The installer's version is always read from `pyproject.toml` at build time, so it can't drift out of sync with the app it's packaging.
+
+Every push builds both the portable zip and this installer via [`.github/workflows/release.yml`](.github/workflows/release.yml): pushes to `main` attach both as assets on a GitHub Release, while every other branch gets them as a downloadable Actions artifact instead. Pushes to a branch with an open pull request skip this build entirely (including rebases/force-pushes of that branch) — only the test suite below runs for those, via `tests.yml`'s own `pull_request` trigger.
 
 ## Running Tests
 
@@ -109,6 +115,7 @@ Beyond the remote configs above, the app remembers the following between launche
 - The selected baud rate.
 - The last firmware file chosen (via the file picker or drag-and-drop).
 - The last CAN DBC file loaded in the CAN viewer (see [Tools](#tools) below).
+- The last ELF file loaded in the ELF parser (see [Tools](#tools) below).
 
 These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) in an INI file under the OS's standard per-user config directory (e.g. `%LOCALAPPDATA%\flashwiz\flash_wiz_settings.ini` on Windows), rather than the Windows registry used by older builds; settings left over from that legacy location are migrated into the file automatically the first time you launch a build with this change. **Tools > Clear All Settings** wipes all of the above (after a confirmation prompt).
 
@@ -121,6 +128,8 @@ If a config change (local or remote) isn't showing up after a restart, use **Edi
 ## Tools
 
 **Tools > CAN** opens a standalone CAN viewer for connecting to a Kvaser CAN device, decoding traffic against a loaded DBC file, and browsing its messages/signals. It requires the [Kvaser CANlib SDK/drivers](https://kvaser.com/canlib-sdk/) to be installed separately; the app will warn and refuse to open the tool if they're missing. Connecting and receiving frames both run on a background thread so the UI doesn't freeze while waiting on the CAN driver.
+
+**Tools > ELF Parser** opens a standalone viewer for inspecting a compiled `.elf` firmware image: pick a file and click **Parse Elf File** to list its sections (name, start address, size, and type) alongside the file's target architecture. The start address field is set from the `.vectors` section, if the ELF has one. Parsing is handled by `ELFParser.parse_elf()` (`src/tools/elf_parser.py`), built on [pyelftools](https://github.com/eliben/pyelftools).
 
 ## AI Use
 

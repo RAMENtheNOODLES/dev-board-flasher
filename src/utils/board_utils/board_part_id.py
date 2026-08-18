@@ -1,5 +1,7 @@
 from enum import Enum, unique
+
 from ..custom_exceptions import UnknownPartID
+
 
 @unique
 class BoardPartID(Enum):

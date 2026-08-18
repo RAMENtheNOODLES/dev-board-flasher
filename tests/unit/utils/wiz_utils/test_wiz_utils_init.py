@@ -1,9 +1,8 @@
 import requests
 
-import utils.wiz_utils as wiz_utils
+from utils import wiz_utils
 from utils.custom_exceptions import RemoteConfigError
 from utils.wiz_utils.github_token import GithubToken
-
 
 # --- read_toml_file_from_url_or_path -------------------------------------
 

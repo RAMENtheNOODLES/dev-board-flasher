@@ -1,3 +1,6 @@
+from typing import Any, ClassVar
+
+
 class WizLogger:
 	"""Holds the app's ``logging.config.dictConfig`` setup.
 
@@ -7,7 +10,7 @@ class WizLogger:
 	``upload_wiz.log`` file (10MB per file, 5 backups kept).
 	"""
 
-	LOGGING_CONFIG = {
+	LOGGING_CONFIG: ClassVar[dict[str, Any]] = {
 		"version": 1,
 		"disable_existing_loggers": False,
 		"formatters": {

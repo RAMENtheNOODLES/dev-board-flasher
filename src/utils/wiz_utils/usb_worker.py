@@ -1,10 +1,12 @@
 from threading import Event
 
-from PySide6.QtCore import Signal, QObject, Slot
+from PySide6.QtCore import QObject, Signal, Slot
 
 # Example using cross-platform 'usb-monitor' package (pip install usb-monitor)
 from usbmonitor import USBMonitor
+
 from .plain_runnable import PlainRunnable
+
 
 class USBWorkerSignals(QObject):
 	"""Signals emitted by :class:`USBWorker` as USB devices connect/disconnect."""

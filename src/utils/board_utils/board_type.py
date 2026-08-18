@@ -1,5 +1,6 @@
 from enum import Enum, unique
 
+
 @unique
 class BoardType(Enum):
 	"""Toolchain/platform categories that a board can belong to."""

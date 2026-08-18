@@ -7,7 +7,6 @@ unrelated reason.
 """
 
 from pathlib import Path
-from typing import Optional
 
 
 def write_board_toml(
@@ -18,7 +17,7 @@ def write_board_toml(
 	baud_rate: int = 115200,
 	board_type: str = "arduino",
 	part_id: str = "atmega328p",
-	supported_files: Optional[list[str]] = None,
+	supported_files: list[str] | None = None,
 ) -> Path:
 	if supported_files is None:
 		supported_files = ["*.hex", "*.bin"]
@@ -48,18 +47,18 @@ def write_tool_toml(
 	tool_name: str = "testtool",
 	tool_loc: str = "",
 	tool_type: str = "cli",
-	supported_boards: Optional[list[str]] = None,
-	supported_file_types: Optional[list[str]] = None,
-	custom_settings: Optional[dict[str, list[str]]] = None,
+	supported_boards: list[str] | None = None,
+	supported_file_types: list[str] | None = None,
+	custom_settings: dict[str, list[str]] | None = None,
 	progress_bar_method: str = "step_array",
 	progress_bar_num_steps: int = 100,
-	inc_step_on: Optional[list[str]] = None,
-	regex_method: Optional[str] = None,
-	step_read_regex: Optional[str] = None,
-	step_final_regex: Optional[str] = None,
-	initial_address: Optional[str] = None,
-	final_address: Optional[str] = None,
-	next_address: Optional[str] = None,
+	inc_step_on: list[str] | None = None,
+	regex_method: str | None = None,
+	step_read_regex: str | None = None,
+	step_final_regex: str | None = None,
+	initial_address: str | None = None,
+	final_address: str | None = None,
+	next_address: str | None = None,
 ) -> Path:
 	if supported_boards is None:
 		supported_boards = ["ARDUINO"]

@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.6.0-beta"
+version = "0.7.0-beta"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    {name = "Carter Rommelfanger", email = "github@cookiejar499.me"}
+	{name = "Carter Rommelfanger", email = "github@cookiejar499.me"}
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3",
 ]
 dependencies = [
 	"pyside6>=6.11.1",
@@ -24,7 +24,8 @@ dependencies = [
 	"canlib>=1.33.358",
 	"usb-monitor>=1.23",
 	"packaging>=26.3",
-	"diskcache>=5.6.3"
+	"diskcache>=5.6.3",
+	"pyelftools>=0.33"
 ]
 
 [project.urls]
@@ -32,7 +33,7 @@ Repository = "https://github.com/RAMENtheNOODLES/dev-board-flasher"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
+	"pytest>=8.0.0",
 	"pytest-qt>=4.4.0",
 	"pytest-mock>=3.14.0",
 	"ruff>=0.8.0",
@@ -44,6 +45,40 @@ dev = [
 
 [tool.ruff]
 line-length = 88
+exclude = [
+	".bzr",
+	".direnv",
+	".eggs",
+	".git",
+	".git-rewrite",
+	".hg",
+	".ipynb_checkpoints",
+	".mypy_cache",
+	".nox",
+	".pants.d",
+	".pyenv",
+	".pytest_cache",
+	".pytype",
+	".ruff_cache",
+	".svn",
+	".tox",
+	".venv",
+	".vscode",
+	"__pypackages__",
+	"_build",
+	"buck-out",
+	"build",
+	"dist",
+	"node_modules",
+	"site-packages",
+	"venv",
+	"ui_*.py",
+	"*_rc.py",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -59,11 +94,13 @@ files = [
     "src/can_logging.py",
     "src/can_viewer.py",
     "src/deployment/main.build/scons-debug.py",
+    "src/elf_viewer.py",
     "src/github_token_ui.py",
     "src/main.py",
     "src/remote_configs.py",
     "src/tools/__init__.py",
     "src/tools/can.py",
+    "src/tools/elf_parser.py",
     "src/utils/board_utils/__init__.py",
     "src/utils/board_utils/board_config.py",
     "src/utils/board_utils/board_configurer.py",
@@ -90,6 +127,7 @@ files = [
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
     "ui/can.ui",
+    "ui/elf_viewer.ui",
     "ui/github_token.ui",
     "ui/main_window.ui",
     "ui/remote_configs.ui",

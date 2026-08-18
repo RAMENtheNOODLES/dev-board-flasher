@@ -2,13 +2,13 @@ import csv
 import logging
 import threading
 from datetime import datetime
-from typing import Optional, TextIO
+from typing import TextIO
 
-from PySide6.QtCore import QCoreApplication, QTimer, QThreadPool
-from PySide6.QtGui import QFontDatabase, QIcon, QFont
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 from canlib import Device
 from canlib.frame import Frame
+from PySide6.QtCore import QCoreApplication, QThreadPool, QTimer
+from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 from tools.can import CAN
 from ui_can import Ui_CANViewer
@@ -74,7 +74,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.logger.error("Error: Could not load font from resources.")
 		
 		QCoreApplication.setOrganizationDomain("CookieJAR")
-		QCoreApplication.setApplicationName("wizlog")
+		QCoreApplication.setApplicationName("flashwiz")
 
 		# init CAN
 		try:
@@ -108,7 +108,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.worker: CanWorker | None = None
 		self.stop_event: threading.Event | None = None
 
-		self.log_file: Optional[TextIO] = None
+		self.log_file: TextIO | None = None
 		self.log_writer = None
 		self.actionSto_p_Logging.setEnabled(False)
 
@@ -206,7 +206,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self,
 			"Open File",
 			StoredSettings.CAN_DBC_FILE.get(""),
-			f"CAN Database Files (*.dbc)"
+			"CAN Database Files (*.dbc)"
 		)
 
 		if not dbc_file:
@@ -220,7 +220,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		# only refreshes on the next connect rather than here.
 		self._sync_dbc()
 
-	def _dbc_file_if_enabled(self) -> Optional[str]:
+	def _dbc_file_if_enabled(self) -> str | None:
 		"""Returns the loaded DBC path, or `None` if "Use DBC File" is unchecked."""
 		return self.dbc_file if self.useDBCCheckBox.isChecked() else None
 
@@ -325,7 +325,10 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 
 		if self.log_writer is not None:
 			self.log_writer.writerow([
-				datetime.now().isoformat(timespec="milliseconds"),
+				# .astimezone() attaches the local tzinfo without changing the
+				# displayed time - CSV timestamps are meant to read as local
+				# wall-clock time, not UTC.
+				datetime.now().astimezone().isoformat(timespec="milliseconds"),
 				self.channel,
 				f"0x{frame.id:X}",
 				frame.dlc,
@@ -350,7 +353,10 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		if not log_path:
 			return
 
-		self.log_file = open(log_path, "w", newline="", encoding="utf-8")
+		# Deliberately not a `with` block: the file must stay open across
+		# separate calls (_on_frame_received writes to it as frames arrive,
+		# stop_logging closes it later), not just for this method's duration.
+		self.log_file = open(log_path, "w", newline="", encoding="utf-8")  # noqa: SIM115
 		self.log_writer = csv.writer(self.log_file)
 		self.log_writer.writerow(["Timestamp", "Channel", "ID", "DLC", "Data", "Decoded"])
 

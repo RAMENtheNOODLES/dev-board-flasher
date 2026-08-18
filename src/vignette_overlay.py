@@ -1,7 +1,8 @@
 # vignette_overlay.py
-from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPainter, QColor, QFont
+from PySide6.QtGui import QColor, QFont, QPainter
+from PySide6.QtWidgets import QWidget
+
 
 class VignetteOverlay(QWidget):
     """Semi-transparent overlay shown while a file is being dragged over the window.

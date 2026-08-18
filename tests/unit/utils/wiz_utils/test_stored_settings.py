@@ -8,7 +8,7 @@ def test_universal_to_bytes_passes_through_bytes():
 
 
 def test_universal_to_bytes_encodes_strings_as_utf8():
-	assert universal_to_bytes("hello") == "hello".encode("utf-8")
+	assert universal_to_bytes("hello") == b"hello"
 
 
 @pytest.mark.parametrize(

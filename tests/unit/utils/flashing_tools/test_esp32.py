@@ -1,6 +1,6 @@
+from fixtures.toml_samples import write_tool_toml
 from PySide6.QtWidgets import QProgressBar, QTextEdit
 
-from fixtures.toml_samples import write_tool_toml
 from utils.flashing_tools.esp32 import ESP32
 
 

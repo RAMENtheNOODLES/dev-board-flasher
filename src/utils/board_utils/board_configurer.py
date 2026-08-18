@@ -1,20 +1,15 @@
-import tomllib
+import logging
 from pathlib import Path
-import os
 
-from .board_config import BoardConfig
-from .board_type import get_board_type
-from .board_part_id import get_board_part_id
-from ..wiz_utils.github_token import GithubToken
-from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
-from ..custom_exceptions.remote_config_error import RemoteConfigError
 from ..custom_exceptions.unknown_flasher_type import UnknownFlasherType
+from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
 from ..wiz_utils.cache_helper import CacheHelper
+from .board_config import BoardConfig
+from .board_part_id import get_board_part_id
+from .board_type import get_board_type
 
 # Import all flashing tool variants
 from .flasher_finder import FlasherFinder
-
-import logging
 
 # Plain assignment, not the `type X = ...` statement (PEP 695): that syntax
 # requires Python 3.12+, but pyproject.toml declares `requires-python = ">=3.10"`.
@@ -24,21 +19,25 @@ class BoardConfigurer:
 	"""Finds and configures boards automatically
 	"""
 
-	_board_cache: list[BoardConfig|None] = []
+	# Not a ClassVar: refresh_cache() reassigns this per-instance. The bare
+	# annotation (no mutable default) just avoids sharing one list across
+	# instances before the first refresh_cache() call.
+	_board_cache: list[BoardConfig|None]
 
-	def __init__(self, remote_configs: list[str] = []):
+	def __init__(self, remote_configs: list[str] | None = None):
 		"""Initializes the configurer and builds the initial board cache.
 
 		Args:
-			remote_configs (list[str], optional): Local paths and/or GitHub
-				URLs of extra board/flashing-tool TOML files, loaded in
-				addition to ``config/boards`` and ``config/flashing_tools``.
+			remote_configs (list[str] | None, optional): Local paths and/or
+				GitHub URLs of extra board/flashing-tool TOML files, loaded
+				in addition to ``config/boards`` and ``config/flashing_tools``.
 				Each entry is classified by whether its parsed TOML declares
 				a ``board_name`` or ``tool_name`` key (see
-				:func:`wiz_utils.get_remote_configs`). Defaults to ``[]``.
+				:func:`wiz_utils.get_remote_configs`). Defaults to ``None``
+				(no extra configs).
 		"""
 		self.logger = logging.getLogger(__name__)
-		self.remote_configs = remote_configs
+		self.remote_configs = remote_configs if remote_configs is not None else []
 		self.refresh_cache()
 
 	def refresh_cache(self):
@@ -91,13 +90,14 @@ class BoardConfigurer:
 		return get_remote_configs(remote_configs, "board_name", cache)
 
 	@staticmethod
-	def get_boards(remote_configs: list[str] = [], cache: dict[str, dict | None] | None = None) -> list[str]:
+	def get_boards(remote_configs: list[str] | None = None, cache: dict[str, dict | None] | None = None) -> list[str]:
 		"""Retrieves board configuration files from the config path, plus any remote ones.
 
 		Args:
-			remote_configs (list[str], optional): Local paths and/or GitHub
-				URLs to check for board configs, in addition to the bundled
-				``config/boards`` folder. Defaults to ``[]``.
+			remote_configs (list[str] | None, optional): Local paths and/or
+				GitHub URLs to check for board configs, in addition to the
+				bundled ``config/boards`` folder. Defaults to ``None`` (no
+				extra configs).
 			cache (dict[str, dict | None] | None, optional): Shared memo
 				passed through to :meth:`get_board_configs`. Defaults to
 				``None``.
@@ -106,6 +106,7 @@ class BoardConfigurer:
 			list[str]: Paths/URLs of all board TOML files found, from both
 				``config/boards`` and ``remote_configs``.
 		"""
+		remote_configs = remote_configs if remote_configs is not None else []
 
 		board_confs: list[str] = BoardConfigurer.get_board_configs(remote_configs, cache)
 
@@ -168,7 +169,7 @@ class BoardConfigurer:
 
 		try:
 			flashing_tool = flasher_finder.get_flashing_tool(config_data["board_settings"]["flasher"], board_type)
-		except UnknownFlasherType as e:
+		except UnknownFlasherType:
 			logger.warning(f"Unknown Flasher type: {config_data['board_settings']['flasher']}")
 			return None
 
