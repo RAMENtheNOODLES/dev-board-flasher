@@ -74,7 +74,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.logger.error("Error: Could not load font from resources.")
 		
 		QCoreApplication.setOrganizationDomain("CookieJAR")
-		QCoreApplication.setApplicationName("wizlog")
+		QCoreApplication.setApplicationName("flashwiz")
 
 		# init CAN
 		try:

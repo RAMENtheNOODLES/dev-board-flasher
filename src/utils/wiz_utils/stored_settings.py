@@ -85,6 +85,9 @@ class StoredSettings(Enum):
 	# CAN Settings
 	CAN_DBC_FILE = "dbc_file"
 
+	# ELF Parser Settings
+	ELF_FILE = "elf_file"
+
 	# Cache Settings
 	STORED_CACHE_HASHES = "cache_hashes"
 

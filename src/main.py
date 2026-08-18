@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from can_viewer import CANViewer
+from elf_viewer import ELFViewer
 from github_token_ui import GithubTokenUI
 from remote_configs import RemoteConfigs
 
@@ -453,6 +454,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.canViewer.show()
 		self.canViewer.activateWindow()
 
+	def open_elf_viewer(self):
+		if self.elfViewer is None:
+			self.elfViewer = ELFViewer(self)
+		
+		self.elfViewer.show()
+		self.elfViewer.activateWindow()
+
 	def show_about(self):
 		"""Shows the **Help > About** dialog with the app's version and credits."""
 		QMessageBox.about(
@@ -622,6 +630,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)
 		self.actionCANLib_Kvaser.triggered.connect(self.open_can_viewer)
 
+		self.action_Elf_Parser.triggered.connect(self.open_elf_viewer)
+
 	def get_cached_settings(self):
 		"""Restores the previously selected board, firmware file, and baud rate from :class:`StoredSettings`."""
 		board = StoredSettings.CHOSEN_BOARD.get("")
@@ -703,6 +713,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def misc(self):
 		"""Handles the remaining one-off startup steps that don't fit the other load tasks."""
 		self.canViewer = None
+		self.elfViewer = None
 		self.refresh_serial_ports()
 		self.vignette.raise_()
 		self.installEventFilter(self)

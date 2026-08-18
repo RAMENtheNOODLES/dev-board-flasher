@@ -115,6 +115,7 @@ Beyond the remote configs above, the app remembers the following between launche
 - The selected baud rate.
 - The last firmware file chosen (via the file picker or drag-and-drop).
 - The last CAN DBC file loaded in the CAN viewer (see [Tools](#tools) below).
+- The last ELF file loaded in the ELF parser (see [Tools](#tools) below).
 
 These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) in an INI file under the OS's standard per-user config directory (e.g. `%LOCALAPPDATA%\flashwiz\flash_wiz_settings.ini` on Windows), rather than the Windows registry used by older builds; settings left over from that legacy location are migrated into the file automatically the first time you launch a build with this change. **Tools > Clear All Settings** wipes all of the above (after a confirmation prompt).
 
@@ -127,6 +128,8 @@ If a config change (local or remote) isn't showing up after a restart, use **Edi
 ## Tools
 
 **Tools > CAN** opens a standalone CAN viewer for connecting to a Kvaser CAN device, decoding traffic against a loaded DBC file, and browsing its messages/signals. It requires the [Kvaser CANlib SDK/drivers](https://kvaser.com/canlib-sdk/) to be installed separately; the app will warn and refuse to open the tool if they're missing. Connecting and receiving frames both run on a background thread so the UI doesn't freeze while waiting on the CAN driver.
+
+**Tools > ELF Parser** opens a standalone viewer for inspecting a compiled `.elf` firmware image: pick a file and click **Parse Elf File** to list its sections (name, start address, size, and type) alongside the file's target architecture. The start address field is set from the `.vectors` section, if the ELF has one. Parsing is handled by `ELFParser.parse_elf()` (`src/tools/elf_parser.py`), built on [pyelftools](https://github.com/eliben/pyelftools).
 
 ## AI Use
 
