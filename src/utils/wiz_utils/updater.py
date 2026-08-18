@@ -1,7 +1,7 @@
 import logging
 import os
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import QCoreApplication, Qt, QThread, Signal
 from PySide6.QtWidgets import QMessageBox
 
 from . import (
@@ -117,12 +117,7 @@ class Updater(QThread):
 			self.failed.emit(str(e))
 
 	def _on_download_finished(self, dest_path: str) -> None:
-		"""Hands the downloaded installer off to :func:`apply_update`. Connected to ``finished_ok``.
-
-		Deliberately doesn't quit the app itself afterwards - see
-		:func:`apply_update`'s docstring for why staying open and letting
-		Restart Manager close it is required for the update to actually
-		restart the app.
+		"""Hands the downloaded installer off to :func:`apply_update`, then quits the app. Connected to ``finished_ok``.
 
 		Args:
 			dest_path (str): Path of the downloaded ``*-setup.exe`` installer.
@@ -131,6 +126,12 @@ class Updater(QThread):
 			self.logger.info(f"Applying update: {dest_path!r}")
 
 			apply_update(dest_path)
+			# apply_update's detached helper handles waiting for the
+			# installer and relaunching the app on its own, so it's safe
+			# (and necessary - see get_current_exe_path/onefile launcher
+			# notes) to quit this process ourselves now rather than
+			# depending on Restart Manager to do it.
+			QCoreApplication.quit()
 		except Exception as e:  # noqa: BLE001 - install best-effort; log and move on rather than crash
 			self.logger.error(f"Failed to apply update: {e}")
 

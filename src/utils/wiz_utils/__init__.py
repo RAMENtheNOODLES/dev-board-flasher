@@ -1,6 +1,9 @@
+import ctypes
 import io
 import logging
+import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -203,32 +206,95 @@ def download_update(url: str, dest_path: str, on_progress=None) -> None:
 					if on_progress and total:
 						on_progress(downloaded / total)
 
+def _get_onefile_launcher_path() -> str | None:
+	"""Resolves the real on-disk path of the running Nuitka onefile exe.
+
+	sys.executable points at the temp-extracted child interpreter, not the
+	installed binary. Nuitka's onefile bootstrap sets NUITKA_ONEFILE_PARENT
+	to the PID of the still-running parent (the actual launched exe) for
+	exactly this purpose, so ask Windows for that process's image path.
+	"""
+	parent_pid = os.environ.get("NUITKA_ONEFILE_PARENT")
+	if not parent_pid:
+		return None
+
+	PROCESS_QUERY_INFORMATION = 0x0400
+	PROCESS_VM_READ = 0x0010
+
+	try:
+		h_process = ctypes.windll.kernel32.OpenProcess(
+			PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, int(parent_pid)
+		)
+		if not h_process:
+			return None
+		try:
+			buffer = ctypes.create_unicode_buffer(1024)
+			length = ctypes.windll.psapi.GetModuleFileNameExW(h_process, None, buffer, len(buffer))
+			return buffer.value if length else None
+		finally:
+			ctypes.windll.kernel32.CloseHandle(h_process)
+	except (ValueError, OSError):
+		return None
+
+def get_current_exe_path() -> str:
+	"""Returns the on-disk path of the currently running executable/script.
+
+	For a Nuitka onefile build, ``sys.executable`` points at the
+	temp-extracted child interpreter rather than the installed binary, so
+	this resolves the real launcher path via
+	:func:`_get_onefile_launcher_path` instead (falling back to
+	``sys.executable`` if that can't be determined). For a plain source run,
+	returns the absolute path of the running script.
+
+	Returns:
+		str: Path to the currently running executable or script, suitable
+			for passing to :func:`apply_update` as ``exe_path``.
+	"""
+	if "__compiled__" in globals():
+		# Running as a Nuitka onefile exe
+		return _get_onefile_launcher_path() or sys.executable
+	else:
+		# Running as a plain .py script (dev mode)
+		return os.path.abspath(sys.argv[0])
+
 def apply_update(installer_path):
-	"""Launches the downloaded installer silently.
+	"""Runs the downloaded installer silently, then relaunches the app once it finishes.
 
-	The installer (built with ``CloseApplications``/``RestartApplications``,
-	see ``scripts/installer.iss``) uses Windows Restart Manager to detect
-	that this exe is still running (via its open file lock), force-closes
-	it, reinstalls over the existing install directory, then relaunches it.
-
-	Deliberately does NOT exit (or otherwise close down) this process:
-	``RmRestart`` - what Setup's ``RestartApplications``/``/RESTARTAPPLICATIONS``
-	uses to relaunch closed apps - only restarts applications that were
-	shut down as part of its own Restart Manager session, not just anything
-	matching the exe name. If this process exits on its own right after
-	launching the installer, it races the installer's process-detection
-	phase: if we win that race, Restart Manager finds nothing running and
-	has nothing to restart once install completes, so the app just stays
-	closed. Staying open and letting Restart Manager force-close this
-	process itself is what makes the later auto-restart possible (see the
-	``RegisterApplicationRestart`` call in ``main.py``'s ``__main__`` guard,
-	which opts this process into being restarted by ``RmRestart``).
+	The installer (built with ``CloseApplications``, see
+	``scripts/installer.iss``) uses Windows Restart Manager to force-close
+	whatever's still holding ``{app}\\upload_wiz.exe`` open before
+	overwriting it. That's *not* necessarily this process, though: for a
+	Nuitka onefile build, the file Restart Manager sees running is the
+	onefile launcher (parent) process, while this Python code runs in a
+	separate child process extracted to a temp directory - so Restart
+	Manager's own restart mechanism (``RmRestart``, which only restarts
+	processes that called ``RegisterApplicationRestart`` on themselves)
+	can't be used to relaunch this app, since we're not the process it
+	closes. Instead, this launches a detached helper script - so it
+	survives this process's own exit or a forced close by Restart Manager -
+	that waits for the installer to finish, then explicitly starts the
+	newly-installed exe.
 
 	Args:
 		installer_path: Path to the downloaded ``*-setup.exe`` installer.
 	"""
+	exe_path = get_current_exe_path()
+
+	# Quoting: cmd's "call" isn't used, so a bare invocation of a quoted
+	# path blocks the .bat until the installer exits, which is what lets
+	# `start` below run only once install (and any Restart-Manager-driven
+	# close of the launcher) has actually finished.
+	bat = f"""
+	@echo off
+	"{installer_path}" /SP- /SILENT /NOICONS /FORCECLOSEAPPLICATIONS
+	start "" "{exe_path}"
+	del "%~f0"
+	"""
+	bat_path = os.path.join(os.environ["TEMP"], "apply_update.bat")
+	with open(bat_path, "w") as f:
+		f.write(bat)
 	subprocess.Popen(
-		["cmd", "/c", installer_path, "/SP-", "/SILENT", "/NOICONS", "/FORCECLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"],
+		["cmd", "/c", bat_path],
 		creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
 	)
 

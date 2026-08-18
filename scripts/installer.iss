@@ -48,8 +48,12 @@ OutputDir=..\build
 OutputBaseFilename=upload_wiz_setup
 SolidCompression=yes
 WizardStyle=modern dynamic
+; RestartApplications isn't used: for a Nuitka onefile build, the process
+; Restart Manager finds/closes here is the onefile launcher, not the actual
+; app process, so its RmRestart-based relaunch can't reach the app anyway.
+; apply_update() in src/utils/wiz_utils/__init__.py relaunches the app
+; itself via a detached helper instead.
 CloseApplications=yes
-RestartApplications=yes
 AppMutex=Global\FlashWizMutex
 
 [Languages]

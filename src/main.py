@@ -743,15 +743,6 @@ if __name__ == "__main__":
 			logger.critical(f"Failed to create mutex. Windows Error: {error_code}")
 			sys.exit(error_code)
 
-		# Tells Restart Manager how to relaunch this app after it force-closes
-		# it (RESTARTAPPLICATIONS in installer.iss, during a self-update) or
-		# after a Windows-Update-triggered reboot. RESTART_NO_CRASH |
-		# RESTART_NO_HANG opts out of the same mechanism auto-relaunching the
-		# app after an ordinary crash/hang, so a real bug doesn't loop.
-		RESTART_NO_CRASH = 0x1
-		RESTART_NO_HANG = 0x2
-		ctypes.windll.kernel32.RegisterApplicationRestart(None, RESTART_NO_CRASH | RESTART_NO_HANG)
-
 	reload_attempt = 0
 
 	while True:
