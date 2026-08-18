@@ -5,11 +5,20 @@ import zipfile, os, sys
 import logging
 
 class Updater(QThread):
-	progress = Signal(float)
+	"""Checks for and installs app updates, downloading the new release on a background thread.
+
+	:meth:`check_for_updates_and_install` runs the check and (if accepted)
+	kicks off the download by starting this thread's :meth:`run`; the actual
+	install (extracting the zip and replacing the running exe) happens on the
+	GUI thread once :meth:`run` reports back via ``finished_ok``.
+	"""
+
+	progress = Signal(float)  # download progress, 0-1
 	finished_ok = Signal(str)   # path to downloaded file
 	failed = Signal(str)		# error message
 
 	def __init__(self) -> None:
+		"""Connects ``finished_ok``/``failed`` to their install/error handlers."""
 		super().__init__()
 		self.logger = logging.getLogger(__name__)
 		self.finished_ok.connect(self._on_download_finished)
@@ -88,6 +97,12 @@ class Updater(QThread):
 			return False
 
 	def run(self):
+		"""Downloads the update to ``self.dest_path``, set beforehand by :meth:`check_for_updates_and_install`.
+
+		Emits ``progress`` as the download proceeds, then ``finished_ok`` on
+		success or ``failed`` with the error message on failure. Runs on this
+		``QThread``, not the GUI thread.
+		"""
 		try:
 			download_update(self.url, self.dest_path, on_progress=self.progress.emit)
 			self.finished_ok.emit(self.dest_path)
@@ -95,6 +110,11 @@ class Updater(QThread):
 			self.failed.emit(str(e))
 
 	def _on_download_finished(self, dest_path: str) -> None:
+		"""Extracts the downloaded zip and hands off to :func:`apply_update`. Connected to ``finished_ok``.
+
+		Args:
+			dest_path (str): Path of the downloaded update zip.
+		"""
 		try:
 			extract_dir = os.path.join(os.environ["TEMP"], "wiz_utils_update")
 			os.makedirs(extract_dir, exist_ok=True)
@@ -108,4 +128,9 @@ class Updater(QThread):
 			self.logger.error(f"Failed to apply update: {e}")
 
 	def _on_download_failed(self, error: str) -> None:
+		"""Logs a failed download. Connected to ``failed``.
+
+		Args:
+			error (str): Description of what went wrong.
+		"""
 		self.logger.error(f"Update download failed: {error}")

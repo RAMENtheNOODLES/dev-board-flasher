@@ -28,6 +28,13 @@ from ..custom_exceptions.remote_config_error import RemoteConfigError
 truststore.inject_into_ssl()
 
 def get_config_path() -> Path:
+	"""Returns the path to the bundled ``pyproject.toml``, used to read the app's version and repo URL.
+
+	Returns:
+		Path: Absolute path to ``pyproject.toml``, resolved relative to this
+			file's location whether running from source or as a compiled
+			Nuitka onefile build.
+	"""
 	logger = logging.getLogger(__name__)
 	# pyproject.toml is bundled as a data file via --include-data-files in
 	# pysidedeploy.spec so it's present next to main.py in both source and
@@ -147,12 +154,34 @@ def check_for_updates() -> tuple[bool, str, dict]:
 			return (False, "", {})
 
 def find_asset(release: dict, asset_name: str) -> dict | None:
+	"""Finds a named asset in a GitHub release API response.
+
+	Args:
+		release (dict): A release object, as returned by
+			:func:`check_for_updates` (the raw GitHub releases API response).
+		asset_name (str): Exact filename of the asset to find.
+
+	Returns:
+		dict | None: The matching asset object, or ``None`` if
+			``release["assets"]`` has no asset named ``asset_name``.
+	"""
 	for asset in release.get("assets", []):
 		if asset["name"] == asset_name:
 			return asset
 	return None
 
 def download_update(url: str, dest_path: str, on_progress=None) -> None:
+	"""Streams a file from ``url`` to ``dest_path``, reporting progress as it goes.
+
+	Args:
+		url (str): Direct download URL for the file (e.g. a release asset's
+			``browser_download_url``).
+		dest_path (str): Local path to write the downloaded file to.
+		on_progress (Callable[[float], None] | None, optional): Called after
+			each chunk with the fraction (0-1) downloaded so far. Only called
+			if the response reports a ``content-length``. Defaults to
+			``None``.
+	"""
 	with requests.get(url, stream=True) as resp:
 		resp.raise_for_status()
 		total = int(resp.headers.get("content-length", 0))
@@ -166,6 +195,19 @@ def download_update(url: str, dest_path: str, on_progress=None) -> None:
 						on_progress(downloaded / total)
 
 def apply_update(new_exe_path, current_exe_path):
+	"""Replaces the running exe with a newly downloaded one and relaunches it, then exits this process.
+
+	Since the currently running exe can't overwrite itself directly, this
+	writes and launches a detached batch script that waits for the process
+	to release its file lock, moves ``new_exe_path`` over ``current_exe_path``,
+	relaunches it, then deletes itself. Does not return: exits this process
+	immediately after handing off to the script.
+
+	Args:
+		new_exe_path: Path to the newly downloaded/extracted executable.
+		current_exe_path: Path of the currently running executable to
+			overwrite, as returned by :func:`get_current_exe_path`.
+	"""
 	# The old exe (or its Nuitka onefile launcher) may still hold its file
 	# locked for a moment after this process exits, so retry the move
 	# instead of assuming one fixed delay is always long enough.
@@ -232,6 +274,19 @@ def _get_onefile_launcher_path() -> str | None:
 		return None
 
 def get_current_exe_path() -> str:
+    """Returns the on-disk path of the currently running executable/script.
+
+    For a Nuitka onefile build, ``sys.executable`` points at the
+    temp-extracted child interpreter rather than the installed binary, so
+    this resolves the real launcher path via
+    :func:`_get_onefile_launcher_path` instead (falling back to
+    ``sys.executable`` if that can't be determined). For a plain source run,
+    returns the absolute path of the running script.
+
+    Returns:
+        str: Path to the currently running executable or script, suitable
+            for passing to :func:`apply_update` as ``current_exe_path``.
+    """
     if "__compiled__" in globals():
         # Running as a Nuitka onefile exe
         return _get_onefile_launcher_path() or sys.executable

@@ -318,7 +318,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):
-		"""Opens or closes the connection depending on current state."""
+		"""Opens or closes the serial monitor connection depending on current state.
+
+		Uses the port and baud rate currently selected in ``serialPortsBox``/
+		``baudRateBox``; status messages are appended to ``logText``.
+		"""
 		if not self.serial.isOpen():
 			# Set the destination port name (e.g. COM3 or /dev/ttyUSB0)
 			self.serial.setPortName(self.serialPortsBox.currentText())
@@ -340,7 +344,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.logText.append("--- Disconnected ---")
 
 	def read_serial_data(self):
-		"""Triggers automatically when microcontrollers stream text data."""
+		"""Reads any buffered serial input and appends it to the log box.
+
+		Connected to the serial port's ``readyRead`` signal.
+		"""
 		# Read all payload bytes currently waiting inside the serial buffer
 		data = self.serial.readAll()
 		# Decode binary stream into universal readable text format
@@ -354,7 +361,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logText.insertPlainText(text)
 
 	def send_serial_data(self):
-		"""Pushes string strings down to the connected microchip hardware."""
+		"""Sends the text in ``serialTXBox`` to the board over the open serial port.
+
+		Appends a ``\\r\\n`` line ending, then clears the input box. No-op
+		(besides logging) if the port isn't open.
+		"""
 		if self.serial.isOpen():
 			text_to_send = self.serialTXBox.text()
 			if text_to_send:
@@ -399,6 +410,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.toggle_connection()
 
 	def open_can_viewer(self):
+		"""Shows the CAN viewer window, creating it (and wiring it to USB events) on first use.
+
+		The same :class:`CANViewer` instance is reused across shows rather
+		than being recreated each time, so an active connection/loaded DBC
+		survives closing and reopening the window.
+		"""
 		if self.canViewer is None:
 			self.canViewer = CANViewer(self)
 			worker, _ = self.workers["USB_Monitor"]
@@ -410,6 +427,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.canViewer.activateWindow()
 
 	def show_about(self):
+		"""Shows the **Help > About** dialog with the app's version and credits."""
 		QMessageBox.about(
 			self,
 			"About FlashWiz",
@@ -614,6 +632,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.updater.check_for_updates_and_install()
 
 	def check_for_optional_libraries(self):
+		"""Enables/disables **Tools > CAN** based on whether the Kvaser CANlib drivers are installed.
+
+		``tools.can`` is imported lazily here rather than at module load time
+		(see ``CAN.check_for_libraries``/``_canlib_can``), so a machine
+		without the drivers can still run the rest of the app.
+		"""
 		from tools.can import CAN
 
 		has_kvaser_libraries = CAN.check_for_libraries()
@@ -621,9 +645,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.actionCANLib_Kvaser.setEnabled(has_kvaser_libraries)
 
 	def setup_background_workers(self):
+		"""Starts the long-lived background workers (currently just USB device monitoring).
+
+		Workers are tracked in ``self.workers`` (keyed by task id) so
+		:meth:`closeEvent` can signal each one's ``stop_event`` before the
+		app exits.
+		"""
 		# Thread Functions
 
 		def startUSBWorker(thread: QThreadPool, worker: USBWorker) -> None:
+			"""Wires a USBWorker's signals to refresh the serial port list, then starts it.
+
+			Args:
+				thread (QThreadPool): Pool to run ``worker`` on.
+				worker (USBWorker): The worker to start.
+			"""
 			worker.signals.device_connected.connect(self.refresh_serial_ports)
 			worker.signals.device_disconnected.connect(self.refresh_serial_ports)
 			thread.start(worker)

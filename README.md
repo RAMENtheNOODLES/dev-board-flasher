@@ -15,6 +15,12 @@ A PySide6 desktop application for flashing firmware onto development boards over
 
 The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy`. The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
 
+## Running Tests
+
+Install the dev dependencies (`pip install -e ".[dev]"`), then run the suite with `make test`, or directly with `pytest` from the repo root. Tests live under `tests/`, split into `tests/unit` (pure logic, no Qt event loop or real hardware) and `tests/integration` (needs `pytest-qt`/heavier fixtures, e.g. a running `QApplication`); integration tests are marked `@pytest.mark.integration` and can be skipped with `pytest -m "not integration"` for a faster local loop. `tests/fixtures` holds hand-written TOML factories used across both.
+
+Every push and pull request also runs the suite on Windows via [`.github/workflows/tests.yml`](.github/workflows/tests.yml) (headless, with `QT_QPA_PLATFORM=offscreen`), followed by a report-only `ruff check` pass that doesn't yet gate the build.
+
 ## Boards
 
 Boards are declared as TOML files in `config/boards/`. See `config/example_board.toml` for a template:

@@ -43,6 +43,15 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 	_CAN_SAMPLE_RATE: int = 100
 
 	def __init__(self, parent = None) -> None:
+		"""Builds the window, loads the bundled font, and populates devices/channels.
+
+		If the Kvaser CANlib drivers aren't installed, shows a warning dialog
+		and closes the window instead of finishing initialization.
+
+		Args:
+			parent (QWidget, optional): Parent widget for the window.
+				Defaults to ``None``.
+		"""
 		super().__init__(parent)
 
 		self.dev: Device|None = None
@@ -121,11 +130,18 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.selected_channel(0)
 
 	def populate_devices(self):
+		"""Repopulates the device dropdown with currently connected CAN devices.
+
+		Connected to the main window's USB monitor signals, so the list stays
+		current as devices are plugged/unplugged, in addition to the initial
+		call from :meth:`__init__`.
+		"""
 		self.deviceSelect.clear()
 		for dev, serial, channels in CAN.list_devices_with_channels():
 			self.deviceSelect.addItem(f"{dev} : {serial}", channels)
 
 	def populate_channels(self):
+		"""Repopulates the channel dropdown with the currently selected device's channels."""
 		self.channelSelect.clear()
 		channels = self.deviceSelect.currentData()
 		if channels is not None:
@@ -133,6 +149,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 				self.channelSelect.addItem(f"Channel: {channel}")
 
 	def selected_device(self, index):
+		"""Applies a newly selected device from the device dropdown to ``self.can``.
+
+		Args:
+			index (int): Index of the selected device, matching
+				:meth:`CAN.list_devices`.
+		"""
 		self.dev = CAN.list_devices()[index]
 		if self.can is None and self.dev is not None:
 			self.can = CAN(self.dev, 0, self._dbc_file_if_enabled(), self._BIT_RATES[self.baudRateComboBox.currentIndex()])
@@ -156,15 +178,30 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.deviceInfo.setPlainText(self.dev.probe_info() if self.dev is not None else "")
 
 	def selected_channel(self, index):
+		"""Applies a newly selected channel from the channel dropdown to ``self.can``.
+
+		Args:
+			index (int): The selected local channel number.
+		"""
 		self.channel = index
 		if self.can is not None:
 			self.can.set_channel(index)
 
 	def selected_baudrate(self, index):
+		"""Applies a newly selected bitrate from the baud rate dropdown to ``self.can``.
+
+		Args:
+			index (int): Index into ``self._BIT_RATES`` of the selected bitrate.
+		"""
 		if self.can is not None:
 			self.can.set_bitrate(self._BIT_RATES[index])
 
 	def load_dbc(self):
+		"""Opens a file picker for choosing a DBC file and applies it to ``self.can``.
+
+		The chosen path is persisted to :data:`StoredSettings.CAN_DBC_FILE`.
+		No-op if the dialog is cancelled.
+		"""
 		dbc_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
@@ -200,6 +237,13 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.can.load_dbc(self._dbc_file_if_enabled())
 
 	def connect_can(self):
+		"""Toggles the CAN connection: starts a :class:`CanWorker`, or asks the running one to stop.
+
+		If already connected/connecting, requests a graceful stop via
+		``self.stop_event`` rather than touching the worker directly from
+		this thread. Otherwise starts a new :class:`CanWorker` on
+		``self.thread_pool`` and wires its signals to this window's handlers.
+		"""
 		if self.worker is not None and self.stop_event is not None:
 			# Already connected/connecting: ask the worker to close the
 			# channel and stop, rather than touching it from this thread.
@@ -233,16 +277,27 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.thread_pool.start(worker)
 
 	def _set_controls_enabled(self, enabled: bool) -> None:
+		"""Enables/disables the device/channel/baud rate controls and Load DBC action.
+
+		Called while a connection is in progress or open, so the device
+		being used can't be changed out from under the running
+		:class:`CanWorker`.
+
+		Args:
+			enabled (bool): Whether the controls should be enabled.
+		"""
 		self.deviceSelect.setEnabled(enabled)
 		self.channelSelect.setEnabled(enabled)
 		self.baudRateComboBox.setEnabled(enabled)
 		self.action_Load_DBC.setEnabled(enabled)
 
 	def _on_can_connected(self):
+		"""Updates the connect button once the worker's channel is open. Connected to ``CanWorker.signals.connected``."""
 		self.connectButton.setEnabled(True)
 		self.connectButton.setText("Disconnect")
 
 	def _on_can_disconnected(self):
+		"""Clears the worker/stop event and restores controls once the channel is closed. Connected to ``CanWorker.signals.disconnected``."""
 		self.worker = None
 		self.stop_event = None
 		self.connectButton.setEnabled(True)
@@ -250,10 +305,21 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self._set_controls_enabled(True)
 
 	def _on_can_error(self, message: str):
+		"""Logs and shows a worker error. Connected to ``CanWorker.signals.error``.
+
+		Args:
+			message (str): Description of the error raised on the worker
+				thread.
+		"""
 		self.logger.error(f"CAN error: {message}")
 		QMessageBox.critical(self, "CAN Error", message)
 
 	def _on_frame_received(self, frame: Frame):
+		"""Updates the message tree and, if logging, writes a CSV row. Connected to ``CanWorker.signals.frame_received``.
+
+		Args:
+			frame (Frame): The raw frame received off the bus.
+		"""
 		decoded = self.can.decode(frame) if self.can is not None else None
 		self.canLogs.update_tree(frame, self.channel, decoded)
 
@@ -268,6 +334,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			])
 
 	def start_logging(self) -> None:
+		"""Opens a file picker and starts writing received frames to a CSV file.
+
+		Each row logged by :meth:`_on_frame_received` while logging is active
+		has the columns written here as its header. No-op if the dialog is
+		cancelled.
+		"""
 		log_path, _ = QFileDialog.getSaveFileName(
 			self,
 			"Start Logging",
@@ -286,6 +358,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.actionSto_p_Logging.setEnabled(True)
 
 	def stop_logging(self) -> None:
+		"""Closes the CSV log file, if logging is active."""
 		if self.log_file is not None:
 			self.log_file.close()
 		self.log_file = None
@@ -295,6 +368,11 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.actionSto_p_Logging.setEnabled(False)
 
 	def closeEvent(self, event):
+		"""Stops any running worker and closes the log file before the window closes.
+
+		Args:
+			event (QCloseEvent): The close event to accept once cleanup is done.
+		"""
 		if self.stop_event is not None:
 			self.stop_event.set()
 

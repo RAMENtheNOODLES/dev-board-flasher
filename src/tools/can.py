@@ -45,6 +45,21 @@ class CAN:
 		dbc_path: Optional[Union[str, Path]] = None,
 		bitrate: Optional["canlib_can.Bitrate"] = None,
 	) -> None:
+		"""Configures a channel on ``device``, optionally loading a DBC file.
+
+		The channel itself is not opened yet; call :meth:`open` (or use this
+		as a context manager) before sending/receiving.
+
+		Args:
+			device (canlib.Device): The CAN device to use.
+			channel (int, optional): Local channel number on ``device``.
+				Defaults to ``0``.
+			dbc_path (str | Path | None, optional): Path to a DBC file to load
+				immediately via :meth:`load_dbc`. Defaults to ``None`` (no
+				decoding available until :meth:`load_dbc` is called).
+			bitrate (canlib_can.Bitrate | None, optional): Bus bitrate to use
+				when the channel is opened. Defaults to ``BITRATE_500K``.
+		"""
 		self.logger = logging.getLogger(__name__)
 		self.device = device
 		self.channel = channel
@@ -61,6 +76,12 @@ class CAN:
 
 	@staticmethod
 	def poke_can_bus() -> bool:
+		"""Logs the first connected CAN device's info, if any.
+
+		Returns:
+			bool: ``True`` if at least one CAN device is connected, ``False``
+				otherwise.
+		"""
 		logger = logging.getLogger(__name__)
 		for dev in canlib.connected_devices():
 			logger.debug(dev.probe_info())
@@ -121,14 +142,17 @@ class CAN:
 
 	@property
 	def is_open(self) -> bool:
+		"""bool: Whether the channel is currently open (via :meth:`open`)."""
 		return self._channel is not None
 
 	@property
 	def has_dbc(self) -> bool:
+		"""bool: Whether a DBC file is currently loaded (via :meth:`load_dbc`)."""
 		return self._dbc is not None
 
 	@property
 	def get_dbc_messages(self) -> Generator[Message, Any, None]|None:
+		"""Generator[Message, Any, None] | None: The loaded DBC's messages, or ``None`` if no DBC is loaded."""
 		if self._dbc is not None:
 			return self._dbc.messages()
 		else:

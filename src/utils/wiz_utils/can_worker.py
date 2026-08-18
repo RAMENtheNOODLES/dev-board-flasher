@@ -40,6 +40,17 @@ class CanWorker(PlainRunnable):
 	"""
 
 	def __init__(self, task_id: str, stop_event: Event, can_instance: CAN, receive_timeout: int = 100):
+		"""Prepares the worker to drive ``can_instance``'s connect/receive loop.
+
+		Args:
+			task_id (str): Identifier for this task (see :class:`PlainRunnable`).
+			stop_event (Event): Set by the caller to request a graceful stop.
+			can_instance (CAN): The CAN channel to open and read from. Must
+				not be touched from another thread once :meth:`run` starts,
+				until ``disconnected`` fires.
+			receive_timeout (int, optional): Timeout, in milliseconds, passed
+				to each ``CAN.receive`` call. Defaults to ``100``.
+		"""
 		super().__init__(task_id, stop_event)
 		self.signals = CanWorkerSignals()
 		self.can = can_instance
@@ -47,6 +58,15 @@ class CanWorker(PlainRunnable):
 
 	@Slot()
 	def run(self):
+		"""Walks the DBC (if any), opens the channel, and receives frames until stopped.
+
+		Emits ``dbc_ready`` with the DBC's messages/signals first (even if
+		none are loaded), then ``connected`` once the channel is open, then
+		``frame_received`` for each frame read off the bus until
+		``stop_event`` is set or the channel closes, then ``disconnected``.
+		Any exception along the way is reported via ``error`` instead of
+		propagating, and the channel is always closed before returning.
+		"""
 		try:
 			dbc_data = self.can.dbc_message_signals()
 		except Exception as e:

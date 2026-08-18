@@ -29,7 +29,7 @@ MAIN_APP = $(SRC_DIR)/main.py
 # --------------------------------------------------------------------
 # TARGET RULES
 # --------------------------------------------------------------------
-.PHONY: all ui rcc run design compile project-files clean
+.PHONY: all ui rcc run test design compile project-files clean
 
 # Default: Compiles all individual UI parts and assets
 all: ui rcc project-files
@@ -54,6 +54,14 @@ run: all
 # Does not work with Python versions >=3.11
 dev_run: all
 	$(RELOADIUM) run $(MAIN_APP)
+
+# --------------------------------------------------------------------
+# TESTS
+# --------------------------------------------------------------------
+# Runs the full test suite (tests/unit + tests/integration). Requires the
+# dev extras: pip install -e ".[dev]"
+test:
+	$(PYTHON) -m pytest -q
 
 # --------------------------------------------------------------------
 # STANDALONE EXECUTABLE
