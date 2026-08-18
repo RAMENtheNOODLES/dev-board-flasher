@@ -432,7 +432,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self,
 			"About FlashWiz",
 			f"""<h3> FlashWiz {self.versionLabel.text()} </h3>
-			<p> This app was built using PySide6.</p>
+			<p> Copyright © 2026. Built with PySide6.</p>
 			<p> Designed by Carter Rommelfanger</p>"""
 		)
 
