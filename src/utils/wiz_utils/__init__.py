@@ -146,14 +146,19 @@ def check_for_updates() -> tuple[bool, str, dict]:
 		try:
 			response = requests.get(api_url, timeout=5)
 			response.raise_for_status()
-			latest_version = response.json()["tag_name"]
-			latest_version = latest_version.lstrip("v")
-			latest_version = version.parse(latest_version)
+			latest_version_str = response.json()["tag_name"].lstrip("v")
+			latest_version = version.parse(latest_version_str)
 
 			logger.debug(f"Latest version: {latest_version}")
 
 			if (latest_version > ver):
-				return (True, latest_version.public, response.json())
+				# Return the raw tag-derived string (not the PEP 440-normalized
+				# form) since the release workflow names assets directly from
+				# pyproject.toml's version string (e.g. "0.7.0-beta"), which
+				# packaging.version normalizes to "0.7.0b0" - using the
+				# normalized form here would make find_asset() look for a
+				# filename that doesn't exist.
+				return (True, latest_version_str, response.json())
 			else:
 				return (False, "", {})
 		except (requests.RequestException, ValueError, KeyError) as e:

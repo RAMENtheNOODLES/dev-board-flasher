@@ -94,7 +94,14 @@ class Updater(QThread):
 				self.logger.info("Updating app...")
 				asset = find_asset(resp, f"dev-board-flasher-{latest_version}-windows.zip")
 				if asset is None:
-					raise RuntimeError("Expected asset not found in latest release")
+					self.logger.error(f"Expected asset not found in latest release ({latest_version})")
+					err = QMessageBox()
+					err.setIcon(QMessageBox.Icon.Warning)
+					err.setWindowTitle("Update App")
+					err.setText(f"Couldn't find a downloadable update for version {latest_version}. Please download it manually from the GitHub releases page.")
+					err.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+					err.exec()
+					return True
 
 				self.url = asset["browser_download_url"]
 				self.dest_path = os.path.join(os.environ["TEMP"], "dev-board-flasher.zip")
