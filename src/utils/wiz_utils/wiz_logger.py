@@ -1,4 +1,12 @@
 class WizLogger:
+	"""Holds the app's ``logging.config.dictConfig`` setup.
+
+	Applied once at startup (see ``if __name__ == "__main__"`` in
+	``main.py``) via ``logging.config.dictConfig(WizLogger.LOGGING_CONFIG)``.
+	Logs at ``DEBUG`` and above to both the console and a rotating
+	``upload_wiz.log`` file (10MB per file, 5 backups kept).
+	"""
+
 	LOGGING_CONFIG = {
 		"version": 1,
 		"disable_existing_loggers": False,

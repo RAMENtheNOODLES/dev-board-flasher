@@ -12,7 +12,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Upload WIz</string>
+   <string>Flash Wiz</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QFrame" name="containerWidget">
@@ -271,21 +271,32 @@
     <addaction name="actionRemote_Configurations"/>
     <addaction name="actionGithubPAT"/>
     <addaction name="separator"/>
+    <addaction name="action_Invalidate_Cache"/>
     <addaction name="action_Reload_App"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
      <string>&amp;Help</string>
     </property>
+    <addaction name="action_About"/>
     <addaction name="actionCheck_for_Updates"/>
+   </widget>
+   <widget class="QMenu" name="menu_Tools">
+    <property name="title">
+     <string>&amp;Tools</string>
+    </property>
+    <addaction name="actionCANLib_Kvaser"/>
+    <addaction name="action_Elf_Parser"/>
+    <addaction name="actionClear_All_Settings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menu_Tools"/>
    <addaction name="menu_Help"/>
   </widget>
   <action name="actionOpen_File">
    <property name="text">
-    <string>&amp;Open</string>
+    <string>&amp;Open...</string>
    </property>
   </action>
   <action name="actionAdd_External_Flashing_Tool">
@@ -310,12 +321,40 @@
   </action>
   <action name="actionGithubPAT">
    <property name="text">
-    <string>&amp;Github Personal Access Token</string>
+    <string>&amp;Github Personal Access Token...</string>
    </property>
   </action>
   <action name="actionRemote_Configurations">
    <property name="text">
-    <string>Remote &amp;Configurations</string>
+    <string>Remote &amp;Configurations...</string>
+   </property>
+  </action>
+  <action name="actionCANLib_Kvaser">
+   <property name="text">
+    <string>&amp;CAN</string>
+   </property>
+  </action>
+  <action name="action_Elf_Parser">
+   <property name="text">
+    <string>&amp;Elf Parser</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="action_About">
+   <property name="text">
+    <string>&amp;About</string>
+   </property>
+  </action>
+  <action name="actionClear_All_Settings">
+   <property name="text">
+    <string>Clear All &amp;Settings</string>
+   </property>
+  </action>
+  <action name="action_Invalidate_Cache">
+   <property name="text">
+    <string>&amp;Invalidate Cache</string>
    </property>
   </action>
  </widget>

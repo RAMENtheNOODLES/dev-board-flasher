@@ -15,6 +15,12 @@ A PySide6 desktop application for flashing firmware onto development boards over
 
 The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy`. The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
 
+## Running Tests
+
+Install the dev dependencies (`pip install -e ".[dev]"`), then run the suite with `make test`, or directly with `pytest` from the repo root. Tests live under `tests/`, split into `tests/unit` (pure logic, no Qt event loop or real hardware) and `tests/integration` (needs `pytest-qt`/heavier fixtures, e.g. a running `QApplication`); integration tests are marked `@pytest.mark.integration` and can be skipped with `pytest -m "not integration"` for a faster local loop. `tests/fixtures` holds hand-written TOML factories used across both.
+
+Every push and pull request also runs the suite on Windows via [`.github/workflows/tests.yml`](.github/workflows/tests.yml) (headless, with `QT_QPA_PLATFORM=offscreen`), followed by a report-only `ruff check` pass that doesn't yet gate the build.
+
 ## Boards
 
 Boards are declared as TOML files in `config/boards/`. See `config/example_board.toml` for a template:
@@ -86,17 +92,36 @@ Boards and flashing tools don't have to live inside the app's built-in `config/`
 
 The **Remote Configurations** dialog lets you add rows by typing/pasting a path or URL directly, or via a file picker for local files, and edit or remove existing rows; the list is only saved when the dialog is accepted (e.g. clicking OK). Picking up added, edited, or removed entries requires restarting the app, either manually from **Edit > Reload App** or by relaunching.
 
-The list is remembered between launches (stored via `QSettings` under the `CookieJAR`/`wizlog` organization/application name, see `StoredSettings.REMOTE_CONFIGS` in `src/utils/wiz_utils/stored_settings.py`).
+The list is remembered between launches (see `StoredSettings.REMOTE_CONFIGS` in `src/utils/wiz_utils/stored_settings.py`, and [Remembered Session State](#remembered-session-state) below for where that's stored).
+
+Each board/flashing-tool config file's parsed contents are also cached to disk (see [Board and Config Cache](#board-and-config-cache) below), so remote URLs aren't re-fetched on every startup; use **Edit > Invalidate Cache** after editing a remote file if the app doesn't pick up the change.
 
 ### Fetching from private GitHub repos
 
-GitHub URLs are fetched through the GitHub Contents API (works for both public and private repos), which requires a personal access token (PAT) with read access to the repo. Set one from **Edit > Github Personal Access Token**; unlike the settings above, it's stored in your OS's credential store (via [`keyring`](https://pypi.org/project/keyring/)) rather than `QSettings`, since it's a secret. See [docs/github_token.md](docs/github_token.md) for a walkthrough of creating a suitable token.
+GitHub URLs are fetched through the GitHub Contents API (works for both public and private repos), which requires a personal access token (PAT) with read access to the repo. Set one from **Edit > Github Personal Access Token**; unlike the settings above, it's stored in your OS's credential store (via [`keyring`](https://pypi.org/project/keyring/)) rather than in the settings file, since it's a secret. See [docs/github_token.md](docs/github_token.md) for a walkthrough of creating a suitable token. Successful responses are also cached in memory for 10 minutes to avoid hammering the API on repeated refreshes; **Edit > Invalidate Cache** clears this too.
 
 ## Remembered Session State
 
-Beyond the remote configs above, the app remembers the following between launches (via `QSettings`, see `src/utils/wiz_utils/stored_settings.py`) so it reopens the way you left it:
+Beyond the remote configs above, the app remembers the following between launches so it reopens the way you left it:
 
 - The selected board.
 - The selected flash tool settings preset.
 - The selected baud rate.
 - The last firmware file chosen (via the file picker or drag-and-drop).
+- The last CAN DBC file loaded in the CAN viewer (see [Tools](#tools) below).
+
+These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) in an INI file under the OS's standard per-user config directory (e.g. `%LOCALAPPDATA%\flashwiz\flash_wiz_settings.ini` on Windows), rather than the Windows registry used by older builds; settings left over from that legacy location are migrated into the file automatically the first time you launch a build with this change. **Tools > Clear All Settings** wipes all of the above (after a confirmation prompt).
+
+## Board and Config Cache
+
+Parsed board and flashing-tool config files (including remote ones fetched over the network) are cached to disk between launches under the OS's standard per-user cache directory (e.g. `%LOCALAPPDATA%\flashwiz\cache` on Windows), so `config/boards`, `config/flashing_tools`, and any GitHub-hosted remote configs aren't fully re-read/re-fetched on every startup. Each cache file is hashed on write and the hash checked on read (see `CacheHelper` in `src/utils/wiz_utils/cache_helper.py`), so a cache file changed outside the app is treated as untrusted and rebuilt rather than loaded.
+
+If a config change (local or remote) isn't showing up after a restart, use **Edit > Invalidate Cache** to clear the board cache and the GitHub response cache and restart the app, forcing everything to be re-read from source.
+
+## Tools
+
+**Tools > CAN** opens a standalone CAN viewer for connecting to a Kvaser CAN device, decoding traffic against a loaded DBC file, and browsing its messages/signals. It requires the [Kvaser CANlib SDK/drivers](https://kvaser.com/canlib-sdk/) to be installed separately; the app will warn and refuse to open the tool if they're missing. Connecting and receiving frames both run on a background thread so the UI doesn't freeze while waiting on the CAN driver.
+
+## AI Use
+
+This project uses AI for documentation and certain functions

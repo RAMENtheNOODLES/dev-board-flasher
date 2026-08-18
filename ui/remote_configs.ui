@@ -16,6 +16,9 @@
   <layout class="QFormLayout" name="formLayout">
    <item row="0" column="1">
     <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="sizeConstraint">
+      <enum>QLayout::SizeConstraint::SetFixedSize</enum>
+     </property>
      <item>
       <widget class="QPushButton" name="addNewConfigBtn">
        <property name="text">

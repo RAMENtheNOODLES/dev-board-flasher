@@ -5,11 +5,20 @@ import zipfile, os, sys
 import logging
 
 class Updater(QThread):
-	progress = Signal(float)
+	"""Checks for and installs app updates, downloading the new release on a background thread.
+
+	:meth:`check_for_updates_and_install` runs the check and (if accepted)
+	kicks off the download by starting this thread's :meth:`run`; the actual
+	install (extracting the zip and replacing the running exe) happens on the
+	GUI thread once :meth:`run` reports back via ``finished_ok``.
+	"""
+
+	progress = Signal(float)  # download progress, 0-1
 	finished_ok = Signal(str)   # path to downloaded file
 	failed = Signal(str)		# error message
 
 	def __init__(self) -> None:
+		"""Connects ``finished_ok``/``failed`` to their install/error handlers."""
 		super().__init__()
 		self.logger = logging.getLogger(__name__)
 		self.finished_ok.connect(self._on_download_finished)
@@ -26,7 +35,22 @@ class Updater(QThread):
 				raise RuntimeError("No .exe found in downloaded zip")
 			return os.path.join(extract_dir, exe_names[0])
 
-	def check_for_updates_and_install(self):
+	def check_for_updates_and_install(self) -> bool:
+		"""Checks GitHub for a newer release and, if one exists, prompts the user to install it.
+
+		When running from source, installing isn't supported (see
+		``extract_zip``/``apply_update``, which patch the running .exe), so
+		the user is only notified a newer version exists rather than
+		prompted to install it. When a compiled build accepts the prompt,
+		the download/install itself happens asynchronously on this
+		``QThread`` (started here, finishing via :meth:`_on_download_finished`).
+
+		Returns:
+			bool: ``True`` if an update was available (regardless of
+				whether the user chose to install it, or whether install is
+				even supported in this run mode), ``False`` if already on
+				the latest version.
+		"""
 		can_update, latest_version, resp = check_for_updates()
 
 		if can_update and "__compiled__" not in globals():
@@ -40,7 +64,7 @@ class Updater(QThread):
 			msg.setText(f"A new version is available ({latest_version}), but self-update isn't supported when running from source. Please pull the latest changes instead.")
 			msg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
 			msg.exec()
-			return
+			return True
 
 		if can_update:
 			msg = QMessageBox(			
@@ -68,7 +92,17 @@ class Updater(QThread):
 				# completes the download on the background thread.
 				self.start()
 
+			return True
+		else:
+			return False
+
 	def run(self):
+		"""Downloads the update to ``self.dest_path``, set beforehand by :meth:`check_for_updates_and_install`.
+
+		Emits ``progress`` as the download proceeds, then ``finished_ok`` on
+		success or ``failed`` with the error message on failure. Runs on this
+		``QThread``, not the GUI thread.
+		"""
 		try:
 			download_update(self.url, self.dest_path, on_progress=self.progress.emit)
 			self.finished_ok.emit(self.dest_path)
@@ -76,6 +110,11 @@ class Updater(QThread):
 			self.failed.emit(str(e))
 
 	def _on_download_finished(self, dest_path: str) -> None:
+		"""Extracts the downloaded zip and hands off to :func:`apply_update`. Connected to ``finished_ok``.
+
+		Args:
+			dest_path (str): Path of the downloaded update zip.
+		"""
 		try:
 			extract_dir = os.path.join(os.environ["TEMP"], "wiz_utils_update")
 			os.makedirs(extract_dir, exist_ok=True)
@@ -89,4 +128,9 @@ class Updater(QThread):
 			self.logger.error(f"Failed to apply update: {e}")
 
 	def _on_download_failed(self, error: str) -> None:
+		"""Logs a failed download. Connected to ``failed``.
+
+		Args:
+			error (str): Description of what went wrong.
+		"""
 		self.logger.error(f"Update download failed: {error}")
