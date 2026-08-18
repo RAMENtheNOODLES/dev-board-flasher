@@ -1,5 +1,6 @@
 import csv
 import logging
+import os
 import threading
 from datetime import datetime
 from typing import TextIO
@@ -80,6 +81,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		try:
 			Bitrate = _bitrate_enum()
 			self._BIT_RATES = [Bitrate.BITRATE_125K, Bitrate.BITRATE_250K, Bitrate.BITRATE_500K, Bitrate.BITRATE_1M]
+			self.baudRateComboBox.setCurrentIndex(int(StoredSettings.CAN_BAUD_RATE.get(0)))
 			self.populate_devices()
 			self.populate_channels()
 		except FileNotFoundError:
@@ -115,6 +117,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.device_check_timer = QTimer(self)
 		self.device_check_timer.timeout.connect(self.populate_devices)
 		self.action_Load_DBC.triggered.connect(self.load_dbc)
+		self.openDBCFileBtn.clicked.connect(self.load_dbc)
 		self.action_Start_Logging.triggered.connect(self.start_logging)
 		self.actionSto_p_Logging.triggered.connect(self.stop_logging)
 		self.useDBCCheckBox.toggled.connect(self._sync_dbc)
@@ -123,8 +126,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.connectButton.clicked.connect(self.connect_can)
 		self.channelSelect.currentIndexChanged.connect(self.selected_channel)
 		self.baudRateComboBox.currentIndexChanged.connect(self.selected_baudrate)
+		self.dBCFileLineEdit.textEdited.connect(self.dbcLineEditChanged)
 
 		self.dbc_file = StoredSettings.CAN_DBC_FILE.get(None)
+
+		if self.dbc_file is not None:
+			self.dBCFileLineEdit.setText(self.dbc_file)
 
 		self.selected_device(0)
 		self.selected_channel(0)
@@ -195,6 +202,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		"""
 		if self.can is not None:
 			self.can.set_bitrate(self._BIT_RATES[index])
+			StoredSettings.CAN_BAUD_RATE.set(index)
 
 	def load_dbc(self):
 		"""Opens a file picker for choosing a DBC file and applies it to ``self.can``.
@@ -205,7 +213,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		dbc_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			StoredSettings.CAN_DBC_FILE.get(""),
+			StoredSettings.CAN_DBC_FILE.get(StoredSettings.get_documents_path()),
 			"CAN Database Files (*.dbc)"
 		)
 
@@ -214,11 +222,19 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 
 		self.dbc_file = dbc_file
 		StoredSettings.CAN_DBC_FILE.set(self.dbc_file)
+		self.dBCFileLineEdit.setText(self.dbc_file)
 
 		# Walking the loaded DBC's messages/signals is slow enough that it
 		# belongs off the GUI thread (see CanWorker.run), so the tree itself
 		# only refreshes on the next connect rather than here.
 		self._sync_dbc()
+
+	def dbcLineEditChanged(self):
+		text = self.dBCFileLineEdit.text()
+		if os.path.isfile(text):
+			StoredSettings.CAN_DBC_FILE.set(self.dbc_file)
+			self._sync_dbc()
+			self.dbc_file = text
 
 	def _dbc_file_if_enabled(self) -> str | None:
 		"""Returns the loaded DBC path, or `None` if "Use DBC File" is unchecked."""
@@ -290,6 +306,9 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.channelSelect.setEnabled(enabled)
 		self.baudRateComboBox.setEnabled(enabled)
 		self.action_Load_DBC.setEnabled(enabled)
+		self.dBCFileLineEdit.setEnabled(enabled)
+		self.openDBCFileBtn.setEnabled(enabled)
+		self.useDBCCheckBox.setEnabled(enabled)
 
 	def _on_can_connected(self):
 		"""Updates the connect button once the worker's channel is open. Connected to ``CanWorker.signals.connected``."""

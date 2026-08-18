@@ -295,7 +295,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flash_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			self.flash_file,
+			StoredSettings.CACHED_FILE_TO_FLASH.get(StoredSettings.get_documents_path()),
 			f"Binary Files ({allowed_files});; All Files (*)"
 		)
 
@@ -726,8 +726,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
-
 	logger = logging.getLogger(__name__)
+
+	kernel32 = ctypes.windll.kernel32
+	_keep_alive_mutex = kernel32.CreateMutexW(None, False, "Global\\FlashWizMutex")
+	
+	# Check if the mutex already exists in the system
+	if kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+		logger.critical("Application is already running.")
+		sys.exit(1)
+
+	
 
 	reload_attempt = 0
 

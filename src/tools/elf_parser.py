@@ -31,7 +31,7 @@ class ELFParser:
 		with open(filename, "rb") as f:
 			elffile = ELFFile(f)
 
-			start_addr: int = 0
+			start_addr: int = elffile.header["e_entry"]
 
 			header = elffile.header
 
