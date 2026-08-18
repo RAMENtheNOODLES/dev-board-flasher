@@ -1,7 +1,7 @@
+from fixtures.toml_samples import write_tool_toml
 from PySide6.QtGui import QColor, QFont, QTextCharFormat
 from PySide6.QtWidgets import QProgressBar, QTextEdit
 
-from fixtures.toml_samples import write_tool_toml
 from utils.flashing_tools.base_flashing_tool import BaseFlashingTool
 
 

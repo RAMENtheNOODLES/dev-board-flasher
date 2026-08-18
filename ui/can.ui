@@ -161,7 +161,7 @@
   </action>
   <action name="action_Start_Logging">
    <property name="text">
-    <string>&amp;Start Logging</string>
+    <string>&amp;Start Logging...</string>
    </property>
   </action>
   <action name="actionSto_p_Logging">

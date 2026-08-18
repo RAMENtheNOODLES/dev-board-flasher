@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
-
 from fixtures.toml_samples import write_tool_toml
+
 from utils.board_utils.board_type import BoardType
 from utils.board_utils.flasher_finder import FlasherFinder
 from utils.custom_exceptions import UnknownFlasherType, UnsupportedBoardType

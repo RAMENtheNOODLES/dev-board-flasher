@@ -1,15 +1,15 @@
-import sys
+import logging
 import re
+import sys
+from datetime import timedelta
 from urllib.parse import urlsplit, urlunsplit
+
 import keyring
-from keyring.errors import PasswordDeleteError
 import requests
 import requests_cache
-from datetime import timedelta
+from keyring.errors import PasswordDeleteError
 
 from ..custom_exceptions import RemoteConfigError
-
-import logging
 
 _SERVICE_NAME = "dev-board-flasher"
 _USERNAME = "github_pat"

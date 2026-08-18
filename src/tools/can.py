@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, Optional, Union, Generator, Any
+from typing import TYPE_CHECKING, Any
 
 import canlib
 
 if TYPE_CHECKING:
+	# typing.Self needs Python 3.11+, but this is TYPE_CHECKING-only (never
+	# evaluated at runtime, since annotations are lazy - see the
+	# `from __future__ import annotations` above), so it's safe to use here
+	# even though pyproject.toml only requires Python >=3.10 at runtime.
+	from typing import Self
+
 	import canlib.canlib as canlib_can
-	import canlib.kvadblib as kvadblib
+	from canlib import kvadblib
 	from canlib.kvadblib.message import Message
 
 DecodedFrame = dict[str, object]
@@ -29,7 +36,7 @@ def _canlib_can():
 
 def _kvadblib():
 	"""Lazily import canlib.kvadblib, see `_canlib_can` for why."""
-	import canlib.kvadblib as kvadblib
+	from canlib import kvadblib
 
 	return kvadblib
 
@@ -42,8 +49,8 @@ class CAN:
 		self,
 		device: canlib.Device,
 		channel: int = 0,
-		dbc_path: Optional[Union[str, Path]] = None,
-		bitrate: Optional["canlib_can.Bitrate"] = None,
+		dbc_path: str | Path | None = None,
+		bitrate: canlib_can.Bitrate | None = None,
 	) -> None:
 		"""Configures a channel on ``device``, optionally loading a DBC file.
 
@@ -65,8 +72,8 @@ class CAN:
 		self.channel = channel
 		self.bitrate = bitrate if bitrate is not None else _canlib_can().Bitrate.BITRATE_500K
 
-		self._channel: Optional["canlib_can.Channel"] = None
-		self._dbc: Optional["kvadblib.Dbc"] = None
+		self._channel: canlib_can.Channel | None = None
+		self._dbc: kvadblib.Dbc | None = None
 		# Set once receive() has warned about bus error frames, so it only
 		# logs the first one per connection instead of once per error.
 		self._warned_about_errors = False
@@ -86,8 +93,7 @@ class CAN:
 		for dev in canlib.connected_devices():
 			logger.debug(dev.probe_info())
 			return True
-		else:
-			return False
+		return False
 
 	@staticmethod
 	def list_devices() -> list[canlib.Device]:
@@ -186,7 +192,7 @@ class CAN:
 			for msg in self._dbc.messages()
 		}
 
-	def load_dbc(self, dbc_path: Optional[Union[str, Path]]) -> None:
+	def load_dbc(self, dbc_path: str | Path | None) -> None:
 		"""Load a DBC file, used to decode/encode messages by name.
 
 		Pass `None` to clear any currently loaded DBC, e.g. when the caller
@@ -225,7 +231,7 @@ class CAN:
 		if reopen:
 			self.open()
 
-	def set_bitrate(self, bitrate: "canlib_can.Bitrate") -> None:
+	def set_bitrate(self, bitrate: canlib_can.Bitrate) -> None:
 		"""Change the bitrate, reopening the channel if it is currently open."""
 		reopen = self.is_open
 		if reopen:
@@ -261,7 +267,7 @@ class CAN:
 		self._channel.close()
 		self._channel = None
 
-	def __enter__(self) -> "CAN":
+	def __enter__(self) -> Self:
 		self.open()
 		return self
 
@@ -293,7 +299,7 @@ class CAN:
 
 		self._channel.write(frame)
 
-	def receive(self, timeout: int = 500) -> Optional["canlib.Frame"]:
+	def receive(self, timeout: int = 500) -> canlib.Frame | None:
 		"""Read a single raw frame, or `None` on timeout.
 
 		Always returns the raw `canlib.Frame` (id/dlc/data/timestamp intact)
@@ -327,7 +333,7 @@ class CAN:
 
 		return frame
 
-	def decode(self, frame: "canlib.Frame") -> Optional[DecodedFrame]:
+	def decode(self, frame: canlib.Frame) -> DecodedFrame | None:
 		"""Decode `frame`'s signals using the loaded DBC file.
 
 		Returns `None` if no DBC is loaded or the frame's message isn't in it.
@@ -342,7 +348,7 @@ class CAN:
 
 		return {signal.name: signal.phys for signal in bound_message}
 
-	def __iter__(self) -> Iterator["canlib.Frame"]:
+	def __iter__(self) -> Iterator[canlib.Frame]:
 		"""Yield frames as they arrive until the channel is closed."""
 		while self.is_open:
 			frame = self.receive()

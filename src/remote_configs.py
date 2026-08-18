@@ -1,9 +1,15 @@
-from ui_remote_configs import Ui_Dialog
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QListWidgetItem, QFileDialog
+import logging
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+	QDialog,
+	QFileDialog,
+	QListWidgetItem,
+)
+
+from ui_remote_configs import Ui_Dialog
 from utils.wiz_utils.stored_settings import StoredSettings
 
-import logging
 
 class RemoteConfigs(QDialog):
 	"""Modal dialog for editing the list of extra board/flashing-tool configs.
@@ -79,7 +85,7 @@ class RemoteConfigs(QDialog):
 			self,
 			"Open Files",
 			"",
-			f"Config Files (*.toml)"
+			"Config Files (*.toml)"
 		)
 
 		if len(config_files) > 0:

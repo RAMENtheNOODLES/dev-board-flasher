@@ -30,7 +30,7 @@ MAIN_APP = $(SRC_DIR)/main.py
 # --------------------------------------------------------------------
 # TARGET RULES
 # --------------------------------------------------------------------
-.PHONY: all ui rcc run test design compile installer project-files clean
+.PHONY: all ui rcc run test ruff ruff-fixall design compile installer project-files clean
 
 # Default: Compiles all individual UI parts and assets
 all: ui rcc project-files
@@ -63,6 +63,21 @@ dev_run: all
 # dev extras: pip install -e ".[dev]"
 test:
 	$(PYTHON) -m pytest -q
+
+# --------------------------------------------------------------------
+# LINTING
+# --------------------------------------------------------------------
+# Not run by any other target, and not a CI gate (see tests.yml's
+# report-only lint step) - the existing codebase has a large pre-existing
+# violation count under ruff's default rules. Run manually to see current
+# findings; requires the dev extras: pip install -e ".[dev]"
+ruff:
+	$(PYTHON) -m ruff check .
+
+# Same as `ruff`, but applies every auto-fixable violation in place instead
+# of just reporting them. Still standalone/manual only.
+ruff-fixall:
+	$(PYTHON) -m ruff check --fix .
 
 # --------------------------------------------------------------------
 # STANDALONE EXECUTABLE

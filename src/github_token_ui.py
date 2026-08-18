@@ -1,6 +1,8 @@
+from PySide6.QtWidgets import QDialog, QMessageBox
+
 from ui_github_token import Ui_Dialog
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 from utils.wiz_utils.github_token import GithubToken
+
 
 class GithubTokenUI(QDialog):
 	"""Modal dialog for viewing and setting the stored GitHub personal access token.
