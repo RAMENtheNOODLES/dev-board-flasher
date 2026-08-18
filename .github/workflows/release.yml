@@ -5,13 +5,34 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      has_open_pr: ${{ steps.check.outputs.has_open_pr }}
+    steps:
+      - name: Check for an open pull request on this branch
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          count=$(gh pr list --repo "${{ github.repository }}" --head "${{ github.ref_name }}" --state open --json number --jq 'length')
+          if [ "$count" -gt 0 ]; then
+            echo "has_open_pr=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_open_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: check-pr
+    if: needs.check-pr.outputs.has_open_pr != 'true'
     uses: ./.github/workflows/tests.yml
 
   build:
-    needs: test
+    needs: [check-pr, test]
+    if: needs.check-pr.outputs.has_open_pr != 'true'
     runs-on: windows-latest
     env:
       NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache

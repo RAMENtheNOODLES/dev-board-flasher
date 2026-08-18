@@ -19,7 +19,7 @@ The app can also be packaged into a standalone executable with [Nuitka](https://
 
 `make installer` (requires [Inno Setup](https://jrsoftware.org/isinfo.php)'s `ISCC.exe` on `PATH`) wraps the standalone build above in a Windows installer, built from `scripts/installer.iss`. It installs to `%LOCALAPPDATA%\Programs\flashwiz` without requiring admin rights (falling back to the machine-wide `Program Files` if run elevated instead), and adds Start Menu/Desktop shortcuts. The installer's version is always read from `pyproject.toml` at build time, so it can't drift out of sync with the app it's packaging.
 
-Every push builds both the portable zip and this installer via [`.github/workflows/release.yml`](.github/workflows/release.yml): pushes to `main` attach both as assets on a GitHub Release, while every other branch gets them as a downloadable Actions artifact instead.
+Every push builds both the portable zip and this installer via [`.github/workflows/release.yml`](.github/workflows/release.yml): pushes to `main` attach both as assets on a GitHub Release, while every other branch gets them as a downloadable Actions artifact instead. Pushes to a branch with an open pull request skip this build entirely (including rebases/force-pushes of that branch) — only the test suite below runs for those, via `tests.yml`'s own `pull_request` trigger.
 
 ## Running Tests
 
