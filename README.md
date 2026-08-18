@@ -13,7 +13,13 @@ A PySide6 desktop application for flashing firmware onto development boards over
 
 ### As a standalone build
 
-The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy`. The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
+The app can also be packaged into a standalone executable with [Nuitka](https://nuitka.net/) using the included `src/pysidedeploy.spec`, via `pyside6-deploy` (`make compile`). The resulting build bundles its own `config/` directory with the boards and flashing tools shipped in this repo; use the external directory settings below to add your own without rebuilding.
+
+### As a Windows installer
+
+`make installer` (requires [Inno Setup](https://jrsoftware.org/isinfo.php)'s `ISCC.exe` on `PATH`) wraps the standalone build above in a Windows installer, built from `scripts/installer.iss`. It installs to `%LOCALAPPDATA%\Programs\flashwiz` without requiring admin rights (falling back to the machine-wide `Program Files` if run elevated instead), and adds Start Menu/Desktop shortcuts. The installer's version is always read from `pyproject.toml` at build time, so it can't drift out of sync with the app it's packaging.
+
+Every push builds both the portable zip and this installer via [`.github/workflows/release.yml`](.github/workflows/release.yml): pushes to `main` attach both as assets on a GitHub Release, while every other branch gets them as a downloadable Actions artifact instead.
 
 ## Running Tests
 

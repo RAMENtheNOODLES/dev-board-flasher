@@ -7,6 +7,7 @@ UIC      = pyside6-uic
 RCC      = pyside6-rcc
 DEPLOY   = pyside6-deploy
 RELOADIUM = reloadium
+ISCC     = ISCC
 
 # Directories
 UI_DIR    = ui
@@ -29,7 +30,7 @@ MAIN_APP = $(SRC_DIR)/main.py
 # --------------------------------------------------------------------
 # TARGET RULES
 # --------------------------------------------------------------------
-.PHONY: all ui rcc run test design compile project-files clean
+.PHONY: all ui rcc run test design compile installer project-files clean
 
 # Default: Compiles all individual UI parts and assets
 all: ui rcc project-files
@@ -71,6 +72,17 @@ test:
 compile: all
 	@mkdir -p $(BUILD_DIR)
 	$(DEPLOY) $(MAIN_APP) -c $(SPEC_FILE)
+
+# --------------------------------------------------------------------
+# WINDOWS INSTALLER
+# --------------------------------------------------------------------
+# Builds the standalone exe, then wraps it in an Inno Setup installer.
+# AppVersion is read from pyproject.toml (the same way the release workflow
+# does) and passed to ISCC so scripts/installer.iss can't drift out of sync
+# with the version actually being packaged. Requires Inno Setup's ISCC.exe
+# to be on PATH.
+installer: compile
+	$(ISCC) "/DAppVersion=$(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")" scripts/installer.iss
 
 # --------------------------------------------------------------------
 # PROJECT FILE LIST

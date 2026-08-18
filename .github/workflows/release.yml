@@ -2,7 +2,6 @@ name: Build and Release
 
 on:
   push:
-    branches: [main, develop]
 
 permissions:
   contents: write
@@ -48,9 +47,9 @@ jobs:
           }
           exit 0
 
-      - name: Install make
+      - name: Install build tools
         shell: pwsh
-        run: choco install make --no-progress -y
+        run: choco install make innosetup --no-progress -y
 
       - name: Create virtual environment and install project
         shell: pwsh
@@ -87,6 +86,14 @@ jobs:
           }
           Compress-Archive -Path build\* -DestinationPath "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" -ErrorAction Stop
 
+      - name: Build installer
+        shell: pwsh
+        # Runs after the zip above so the installer exe (also written to
+        # build\) doesn't get swept into the portable build's zip.
+        run: |
+          ISCC "/DAppVersion=${{ steps.version.outputs.version }}" scripts\installer.iss
+          Copy-Item "build\upload_wiz_setup.exe" "dev-board-flasher-${{ steps.version.outputs.version }}-setup.exe"
+
       - name: Create GitHub release
         if: github.ref_name == 'main'
         shell: pwsh
@@ -95,13 +102,16 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" `
             "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" `
+            "dev-board-flasher-${{ steps.version.outputs.version }}-setup.exe" `
             --title "${{ steps.version.outputs.tag }}" `
             --generate-notes
 
       - name: Upload build artifact
-        if: github.ref_name == 'develop'
+        if: github.ref_name != 'main'
         uses: actions/upload-artifact@v4
         with:
           name: dev-board-flasher-${{ steps.version.outputs.version }}-windows
-          path: dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip
+          path: |
+            dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip
+            dev-board-flasher-${{ steps.version.outputs.version }}-setup.exe
           retention-days: 14
