@@ -7,4 +7,3 @@ class UnknownFlasherType(Exception):
 		flasher_name (str): The unrecognized flasher/tool name or type that
 			was looked up.
 	"""
-	pass

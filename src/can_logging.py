@@ -1,11 +1,10 @@
-from typing import overload, Optional
-
-from PySide6.QtWidgets import QTreeView, QWidget, QAbstractItemView, QStyledItemDelegate
-from PySide6.QtGui import QStandardItem, QStandardItemModel, QPen
-from PySide6.QtCore import Qt, QTimer, QModelIndex
-from canlib.frame import Frame
 
 import logging
+
+from canlib.frame import Frame
+from PySide6.QtCore import QModelIndex, Qt, QTimer
+from PySide6.QtGui import QPen, QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import QAbstractItemView, QStyledItemDelegate, QTreeView, QWidget
 
 # VALUE/UNIT (columns 6-7) are left unlabeled in the real header since they're
 # meaningless for a message row - only its signal children use them. Each
@@ -138,7 +137,7 @@ class CanLogging(QTreeView):
 			if unit:
 				node.setChild(node.rowCount() - 1, _UNIT_COLUMN, QStandardItem(unit))
 
-	def update_tree(self, frame: Frame, channel: int, decoded: Optional[dict[str, object]] = None) -> None:
+	def update_tree(self, frame: Frame, channel: int, decoded: dict[str, object] | None = None) -> None:
 		"""Updates the tree row for a received frame.
 
 		Called from :meth:`can_viewer.CANViewer._on_frame_received` for every

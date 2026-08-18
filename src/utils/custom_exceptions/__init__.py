@@ -1,7 +1,7 @@
 # utils/custom_exceptions/__init__.py
-from .unsupported_board_type import UnsupportedBoardType
+from .remote_config_error import RemoteConfigError
 from .unknown_flasher_type import UnknownFlasherType
 from .unknown_part_id import UnknownPartID
-from .remote_config_error import RemoteConfigError
+from .unsupported_board_type import UnsupportedBoardType
 
-__all__ = ['UnsupportedBoardType', 'UnknownFlasherType', 'UnknownPartID', 'RemoteConfigError']
+__all__ = ['RemoteConfigError', 'UnknownFlasherType', 'UnknownPartID', 'UnsupportedBoardType']

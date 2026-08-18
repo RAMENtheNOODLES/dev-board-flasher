@@ -5,23 +5,51 @@ import logging.config
 import os
 import sys
 import threading
-import tomllib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, cast
 
-from PySide6.QtCore import QIODevice, QEvent, QCoreApplication, Qt, QThreadPool
-from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDropEvent, QFont, QFontDatabase, QIcon, QPixmap, QPalette, \
-	QColor
-from PySide6.QtSerialPort import QSerialPortInfo, QSerialPort
-from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QSplashScreen, QProgressBar, QLabel
+import tomllib
+from PySide6.QtCore import QCoreApplication, QEvent, QIODevice, Qt, QThreadPool
+from PySide6.QtGui import (
+	QColor,
+	QDragEnterEvent,
+	QDragLeaveEvent,
+	QDropEvent,
+	QFont,
+	QFontDatabase,
+	QIcon,
+	QPalette,
+	QPixmap,
+)
+from PySide6.QtSerialPort import QSerialPort, QSerialPortInfo
+from PySide6.QtWidgets import (
+	QApplication,
+	QFileDialog,
+	QLabel,
+	QMainWindow,
+	QMessageBox,
+	QProgressBar,
+	QSplashScreen,
+)
 
 from can_viewer import CANViewer
 from github_token_ui import GithubTokenUI
 from remote_configs import RemoteConfigs
+
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
-from utils.wiz_utils import WizLogger, get_config_path, Updater, StoredSettings, USBWorker, PlainRunnable, CacheHelper, GithubToken
+from utils.wiz_utils import (
+	CacheHelper,
+	GithubToken,
+	PlainRunnable,
+	StoredSettings,
+	Updater,
+	USBWorker,
+	WizLogger,
+	get_config_path,
+)
 
 # Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
 # MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
@@ -125,7 +153,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		super().__init__()
 		self.logger = logging.getLogger(__name__)
 		self.setupUi(self) # Binds the primary main window layout
-		self.logger = logging.getLogger(__name__)
 		self.load()
 
 	#region Event Functions
@@ -239,7 +266,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.vignette.hide()
 		if event.mimeData().hasUrls():
 			files = [url.toLocalFile() for url in event.mimeData().urls()]
-			self.logger.debug("Dropped files:", files)
+			self.logger.debug(f"Dropped files: {files}")
 			# Update any labels or fields you designed here
 			self.flash_file = files[0]
 
@@ -719,7 +746,7 @@ if __name__ == "__main__":
 
 			if exit_code != EXIT_CODE_RESTART:
 				sys.exit(exit_code)
-		except Exception as e:
+		except Exception:
 			logger.exception("Unknown exception has occurred...")
 			reload_attempt += 1
 		finally:

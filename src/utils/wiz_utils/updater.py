@@ -1,8 +1,19 @@
-from . import download_update, check_for_updates, find_asset, apply_update, get_current_exe_path
-from PySide6.QtCore import QThread, Signal, Qt
-from PySide6.QtWidgets import QMessageBox
-import zipfile, os, sys
 import logging
+import os
+import sys
+import zipfile
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtWidgets import QMessageBox
+
+from . import (
+	apply_update,
+	check_for_updates,
+	download_update,
+	find_asset,
+	get_current_exe_path,
+)
+
 
 class Updater(QThread):
 	"""Checks for and installs app updates, downloading the new release on a background thread.
@@ -106,7 +117,7 @@ class Updater(QThread):
 		try:
 			download_update(self.url, self.dest_path, on_progress=self.progress.emit)
 			self.finished_ok.emit(self.dest_path)
-		except Exception as e:
+		except Exception as e:  # noqa: BLE001 - reported via `failed` instead of crashing this QThread
 			self.failed.emit(str(e))
 
 	def _on_download_finished(self, dest_path: str) -> None:
@@ -124,7 +135,7 @@ class Updater(QThread):
 			self.logger.info(f"Applying update: {new_exe_path!r} -> {current_exe_path!r} (sys.executable={sys.executable!r})")
 
 			apply_update(new_exe_path, current_exe_path)
-		except Exception as e:
+		except Exception as e:  # noqa: BLE001 - install best-effort; log and move on rather than crash
 			self.logger.error(f"Failed to apply update: {e}")
 
 	def _on_download_failed(self, error: str) -> None:

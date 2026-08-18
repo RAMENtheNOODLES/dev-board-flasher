@@ -1,17 +1,13 @@
 from __future__ import annotations
-from string import Template
 
-import tomllib
-import re
+from string import Template
+from typing import TYPE_CHECKING
 
 from . import BaseFlashingTool
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-	from ..board_utils import BoardType, BoardConfig
+	from ..board_utils import BoardConfig
 
-import subprocess
 
 
 class CLIFlashingTool(BaseFlashingTool):

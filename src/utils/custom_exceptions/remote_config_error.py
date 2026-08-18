@@ -7,4 +7,3 @@ class RemoteConfigError(Exception):
 		message (str): Human-readable description of what went wrong
 			(bad URL, missing/invalid token, HTTP failure, etc).
 	"""
-	pass

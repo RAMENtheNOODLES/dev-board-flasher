@@ -138,7 +138,7 @@ class Ui_CANViewer(object):
     def retranslateUi(self, CANViewer):
         CANViewer.setWindowTitle(QCoreApplication.translate("CANViewer", u"CAN Viewer", None))
         self.action_Load_DBC.setText(QCoreApplication.translate("CANViewer", u"&Load DBC...", None))
-        self.action_Start_Logging.setText(QCoreApplication.translate("CANViewer", u"&Start Logging", None))
+        self.action_Start_Logging.setText(QCoreApplication.translate("CANViewer", u"&Start Logging...", None))
         self.actionSto_p_Logging.setText(QCoreApplication.translate("CANViewer", u"Sto&p Logging", None))
         self.label_2.setText(QCoreApplication.translate("CANViewer", u"Device", None))
         self.label.setText(QCoreApplication.translate("CANViewer", u"Channel", None))

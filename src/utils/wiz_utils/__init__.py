@@ -2,25 +2,32 @@ import ctypes
 import io
 import logging
 import os
-import requests
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
 
+import requests
+import tomllib
 import truststore
 from packaging import version
 
+from ..custom_exceptions.remote_config_error import RemoteConfigError
+from .cache_helper import CacheHelper
 from .can_worker import CanWorker
 from .github_token import GithubToken
 from .plain_runnable import PlainRunnable
 from .stored_settings import StoredSettings
 from .usb_worker import USBWorker
 from .wiz_logger import WizLogger
-from .cache_helper import CacheHelper
-from ..custom_exceptions.remote_config_error import RemoteConfigError
 
+# Updater is re-exported for convenience (e.g. `from utils.wiz_utils import
+# Updater`), but only actually imported at the bottom of this file - see the
+# comment there for why.
+__all__ = [
+	"CacheHelper", "CanWorker", "GithubToken", "PlainRunnable",
+	"StoredSettings", "USBWorker", "Updater", "WizLogger",
+]
 
 # Verify TLS certs against the OS trust store (e.g. Windows) instead of only
 # certifi's public bundle, so requests still works behind a corporate
