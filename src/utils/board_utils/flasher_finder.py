@@ -1,14 +1,11 @@
-import tomllib
-from pathlib import Path
-import io
-
-from ..flashing_tools import BaseFlashingTool, cli_flashing_tool, esp32
-from ..custom_exceptions import UnknownFlasherType, UnsupportedBoardType, RemoteConfigError
-from .board_type import BoardType
-from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
-from ..wiz_utils.github_token import GithubToken
-
 import logging
+from pathlib import Path
+
+from ..custom_exceptions import UnknownFlasherType, UnsupportedBoardType
+from ..flashing_tools import BaseFlashingTool, cli_flashing_tool, esp32
+from ..wiz_utils import get_remote_configs, read_toml_file_from_url_or_path
+from .board_type import BoardType
+
 
 class FlasherFinder:
 	"""Discovers and instantiates flashing tools from configuration files.
@@ -20,31 +17,33 @@ class FlasherFinder:
 
 	tools: dict[str, BaseFlashingTool]
 
-	def __init__(self, ext_tools: list[str] = [], cache: dict[str, dict | None] | None = None) -> None:
+	def __init__(self, ext_tools: list[str] | None = None, cache: dict[str, dict | None] | None = None) -> None:
 		"""Discovers flashing tool configuration files and builds tool instances.
 
 		Args:
-			ext_tools (list[str], optional): Local paths and/or GitHub URLs
-				of extra flashing tool TOML files, loaded in addition to
-				``config/flashing_tools``. Defaults to ``[]``.
+			ext_tools (list[str] | None, optional): Local paths and/or
+				GitHub URLs of extra flashing tool TOML files, loaded in
+				addition to ``config/flashing_tools``. Defaults to ``None``
+				(no extra tools).
 			cache (dict[str, dict | None] | None, optional): Shared memo of
 				already-resolved remote configs (see
 				:func:`wiz_utils.read_toml_file_from_url_or_path`), so
 				discovery and parsing don't each re-fetch the same URL.
 				Defaults to ``None``.
 		"""
-		self.ext_tools = ext_tools
+		self.ext_tools = ext_tools if ext_tools is not None else []
 		self.tools = self.parse_tools(self.get_tools(self.ext_tools, cache), cache)
 		self.logger = logging.getLogger(__name__)
 
 	@staticmethod
-	def get_tools(ext_tools: list[str] = [], cache: dict[str, dict | None] | None = None) -> list[str]:
+	def get_tools(ext_tools: list[str] | None = None, cache: dict[str, dict | None] | None = None) -> list[str]:
 		"""Retrieves flashing tool configuration files from the config path, plus any remote ones.
 
 		Args:
-			ext_tools (list[str], optional): Local paths and/or GitHub URLs
-				to check for flashing tool configs, in addition to the
-				bundled ``config/flashing_tools`` folder. Defaults to ``[]``.
+			ext_tools (list[str] | None, optional): Local paths and/or
+				GitHub URLs to check for flashing tool configs, in addition
+				to the bundled ``config/flashing_tools`` folder. Defaults to
+				``None`` (no extra tools).
 			cache (dict[str, dict | None] | None, optional): Shared memo
 				passed through to :meth:`get_tool_configs`. Defaults to
 				``None``.
@@ -53,6 +52,7 @@ class FlasherFinder:
 			list[str]: Paths/URLs of all flashing tool TOML files found,
 				from both ``config/flashing_tools`` and ``ext_tools``.
 		"""
+		ext_tools = ext_tools if ext_tools is not None else []
 		logger = logging.getLogger(__name__)
 		tool_confs: list[str] = FlasherFinder.get_tool_configs(ext_tools, cache)
 
@@ -112,7 +112,6 @@ class FlasherFinder:
 				``tool_settings.type``, or a ``python``-type tool whose name
 				has no built-in implementation.
 		"""
-		logger = logging.getLogger(__name__)
 		out: dict[str, BaseFlashingTool] = {}
 		for tool in tools:
 			config_data = read_toml_file_from_url_or_path(tool, cache)

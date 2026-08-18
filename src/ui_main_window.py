@@ -48,7 +48,8 @@ class Ui_MainWindow(object):
         self.actionCANLib_Kvaser.setObjectName(u"actionCANLib_Kvaser")
         self.action_Elf_Parser = QAction(MainWindow)
         self.action_Elf_Parser.setObjectName(u"action_Elf_Parser")
-        self.action_Elf_Parser.setVisible(False)
+        self.action_Elf_Parser.setEnabled(True)
+        self.action_Elf_Parser.setVisible(True)
         self.action_About = QAction(MainWindow)
         self.action_About.setObjectName(u"action_About")
         self.actionClear_All_Settings = QAction(MainWindow)
@@ -228,6 +229,7 @@ class Ui_MainWindow(object):
         self.menu_Help.addAction(self.actionCheck_for_Updates)
         self.menu_Tools.addAction(self.actionCANLib_Kvaser)
         self.menu_Tools.addAction(self.action_Elf_Parser)
+        self.menu_Tools.addSeparator()
         self.menu_Tools.addAction(self.actionClear_All_Settings)
 
         self.retranslateUi(MainWindow)

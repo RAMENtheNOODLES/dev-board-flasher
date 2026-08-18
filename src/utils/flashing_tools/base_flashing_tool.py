@@ -1,21 +1,17 @@
 from __future__ import annotations
 
+import logging
 import re
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QProcess
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import QApplication, QTextEdit, QProgressBar
+from PySide6.QtWidgets import QApplication, QProgressBar, QTextEdit
 
 from ..wiz_utils import read_toml_file_from_url_or_path
 
-import tomllib
-
-import logging
-
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-	from ..board_utils import BoardType, BoardConfig
+	from ..board_utils import BoardConfig, BoardType
 
 _CSI_RE = re.compile(r"\x1b\[([0-9;]*)([a-zA-Z])")
 
@@ -101,16 +97,20 @@ class BaseFlashingTool:
 	"""
 
 	name = "Base"
-	supported_board_types: list[BoardType] = []
-	supported_file_types: list[str] = []
+	# Not mutable class defaults: __init__ always reassigns each of these
+	# per-instance from the tool's config file, so the bare annotations here
+	# just document the expected type without sharing one list/dict object
+	# across instances before __init__ runs.
+	supported_board_types: list[BoardType]
+	supported_file_types: list[str]
 	tool_loc: str = ""
-	custom_settings: dict[str, list[str]] = {}
+	custom_settings: dict[str, list[str]]
 	num_steps = 0
 	step_read = ""
 	step_final = ""
 	step_method = "none"
 	step_on = 0
-	progress_on = []
+	progress_on: list[str]
 
 	def __init__(self, config_file: str) -> None:
 		"""Loads ``config_file`` and sets up the underlying QProcess.
@@ -347,7 +347,6 @@ class BaseFlashingTool:
 		:meth:`write` renders text into the log box immediately, so there is
 		no buffered data to flush.
 		"""
-		pass
 
 	def update_progress_bar(self, data: str) -> None:
 		"""Advances ``self.p_bar`` based on a chunk of process output.

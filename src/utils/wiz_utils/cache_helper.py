@@ -1,15 +1,14 @@
-import json
 import hashlib
 import hmac
-from typing import Any
+import json
+import logging
 import os
-
 from enum import Enum, unique
+from typing import Any
+
 from PySide6.QtCore import QStandardPaths
 
 from .stored_settings import StoredSettings
-
-import logging
 
 _HASHING_METHOD = "sha256"
 
@@ -60,7 +59,7 @@ class CacheHelper(Enum):
 			file_hash = hashlib.file_digest(file, _HASHING_METHOD).hexdigest()
 
 			if not hmac.compare_digest(file_hash, stored_caches[self.name]):
-				logger.warning(f"Cached Hash does not match actual... Something changed the cache externally...")
+				logger.warning("Cached Hash does not match actual... Something changed the cache externally...")
 				return default_value
 
 			# file_digest reads through to EOF, so rewind before decoding.

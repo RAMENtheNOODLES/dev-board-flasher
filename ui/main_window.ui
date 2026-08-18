@@ -287,6 +287,7 @@
     </property>
     <addaction name="actionCANLib_Kvaser"/>
     <addaction name="action_Elf_Parser"/>
+    <addaction name="separator"/>
     <addaction name="actionClear_All_Settings"/>
    </widget>
    <addaction name="menuFile"/>
@@ -335,11 +336,14 @@
    </property>
   </action>
   <action name="action_Elf_Parser">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>&amp;Elf Parser</string>
    </property>
    <property name="visible">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
   </action>
   <action name="action_About">

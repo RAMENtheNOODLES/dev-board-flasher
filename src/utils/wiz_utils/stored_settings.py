@@ -1,14 +1,14 @@
-from typing import Any, Optional
-from diskcache import Cache
-import os, sys
+import json
+import logging
+import os
+import sys
+from enum import Enum, unique
+from typing import Any
+
 import keyring
 from cryptography.fernet import Fernet
-import json
-
-from enum import Enum, unique
+from diskcache import Cache
 from PySide6.QtCore import QSettings, QStandardPaths
-
-import logging
 
 if sys.platform == "win32":
 	# keyring normally picks a backend via importlib.metadata entry point
@@ -84,6 +84,9 @@ class StoredSettings(Enum):
 
 	# CAN Settings
 	CAN_DBC_FILE = "dbc_file"
+
+	# ELF Parser Settings
+	ELF_FILE = "elf_file"
 
 	# Cache Settings
 	STORED_CACHE_HASHES = "cache_hashes"

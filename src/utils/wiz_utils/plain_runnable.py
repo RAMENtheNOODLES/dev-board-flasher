@@ -1,5 +1,7 @@
-from PySide6.QtCore import QRunnable
 import threading
+
+from PySide6.QtCore import QRunnable
+
 
 class PlainRunnable(QRunnable):
 	"""Base class for a cancellable :class:`QRunnable` run on a :class:`QThreadPool`.

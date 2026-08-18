@@ -1,9 +1,10 @@
 from threading import Event
 
-from PySide6.QtCore import Signal, QObject, Slot
+from PySide6.QtCore import QObject, Signal, Slot
+
+from tools.can import CAN
 
 from .plain_runnable import PlainRunnable
-from tools.can import CAN
 
 
 class CanWorkerSignals(QObject):
@@ -69,7 +70,7 @@ class CanWorker(PlainRunnable):
 		"""
 		try:
 			dbc_data = self.can.dbc_message_signals()
-		except Exception as e:
+		except Exception as e:  # noqa: BLE001 - intentionally broad, see run()'s docstring
 			self.signals.error.emit(str(e))
 			return
 
@@ -77,7 +78,7 @@ class CanWorker(PlainRunnable):
 
 		try:
 			self.can.open()
-		except Exception as e:
+		except Exception as e:  # noqa: BLE001 - intentionally broad, see run()'s docstring
 			self.signals.error.emit(str(e))
 			return
 
@@ -88,7 +89,7 @@ class CanWorker(PlainRunnable):
 				msg = self.can.receive(self.receive_timeout)
 				if msg is not None:
 					self.signals.frame_received.emit(msg)
-		except Exception as e:
+		except Exception as e:  # noqa: BLE001 - intentionally broad, see run()'s docstring
 			self.signals.error.emit(str(e))
 		finally:
 			self.can.close()
