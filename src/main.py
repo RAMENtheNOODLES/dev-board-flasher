@@ -666,7 +666,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.ver = self.config["project"]["version"]
 			self.versionLabel.setText(f"v{self.ver}")
 			self.logger.info("Checking for updates")
-			self.updater.check_for_updates_and_install()
+
+			force_update = "--force-update" in sys.argv
+
+			self.updater.check_for_updates_and_install(force_update)
 
 	def check_for_optional_libraries(self):
 		"""Enables/disables **Tools > CAN** based on whether the Kvaser CANlib drivers are installed.
@@ -728,6 +731,27 @@ if __name__ == "__main__":
 	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
 
 	logger = logging.getLogger(__name__)
+
+	if os.name == 'nt':
+		# Named mutex the installer looks for (AppMutex in scripts/installer.iss)
+		# to detect this app is running and close it during a silent
+		# self-update. Held open for the lifetime of this process; never closed
+		# explicitly since the OS releases it on exit.
+		_update_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\FlashWizMutex")
+
+		if not _update_mutex:
+			error_code = ctypes.get_last_error()
+			logger.critical(f"Failed to create mutex. Windows Error: {error_code}")
+			sys.exit(error_code)
+
+		# Tells Restart Manager how to relaunch this app after it force-closes
+		# it (RESTARTAPPLICATIONS in installer.iss, during a self-update) or
+		# after a Windows-Update-triggered reboot. RESTART_NO_CRASH |
+		# RESTART_NO_HANG opts out of the same mechanism auto-relaunching the
+		# app after an ordinary crash/hang, so a real bug doesn't loop.
+		RESTART_NO_CRASH = 0x1
+		RESTART_NO_HANG = 0x2
+		ctypes.windll.kernel32.RegisterApplicationRestart(None, RESTART_NO_CRASH | RESTART_NO_HANG)
 
 	reload_attempt = 0
 

@@ -1,7 +1,5 @@
 import logging
 import os
-import sys
-import zipfile
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import QMessageBox
@@ -11,7 +9,6 @@ from . import (
 	check_for_updates,
 	download_update,
 	find_asset,
-	get_current_exe_path,
 )
 
 
@@ -20,8 +17,9 @@ class Updater(QThread):
 
 	:meth:`check_for_updates_and_install` runs the check and (if accepted)
 	kicks off the download by starting this thread's :meth:`run`; the actual
-	install (extracting the zip and replacing the running exe) happens on the
-	GUI thread once :meth:`run` reports back via ``finished_ok``.
+	install (silently running the downloaded installer, which closes and
+	relaunches this app) happens on the GUI thread once :meth:`run` reports
+	back via ``finished_ok``.
 	"""
 
 	progress = Signal(float)  # download progress, 0-1
@@ -35,26 +33,16 @@ class Updater(QThread):
 		self.finished_ok.connect(self._on_download_finished)
 		self.failed.connect(self._on_download_failed)
 
-	@staticmethod
-	def extract_zip(zip_path: str, extract_dir: str) -> str:
-		"""Extracts the zip and returns the path to the .exe inside it."""
-		with zipfile.ZipFile(zip_path, "r") as z:
-			z.extractall(extract_dir)
-			# find the exe inside — adjust if you know the exact name/structure
-			exe_names = [n for n in z.namelist() if n.lower().endswith(".exe")]
-			if not exe_names:
-				raise RuntimeError("No .exe found in downloaded zip")
-			return os.path.join(extract_dir, exe_names[0])
-
-	def check_for_updates_and_install(self) -> bool:
+	def check_for_updates_and_install(self, force_update: bool = False) -> bool:
 		"""Checks GitHub for a newer release and, if one exists, prompts the user to install it.
 
 		When running from source, installing isn't supported (see
-		``extract_zip``/``apply_update``, which patch the running .exe), so
-		the user is only notified a newer version exists rather than
-		prompted to install it. When a compiled build accepts the prompt,
-		the download/install itself happens asynchronously on this
-		``QThread`` (started here, finishing via :meth:`_on_download_finished`).
+		:func:`apply_update`, which runs the downloaded installer against
+		the packaged app's install directory), so the user is only notified
+		a newer version exists rather than prompted to install it. When a
+		compiled build accepts the prompt, the download/install itself
+		happens asynchronously on this ``QThread`` (started here, finishing
+		via :meth:`_on_download_finished`).
 
 		Returns:
 			bool: ``True`` if an update was available (regardless of
@@ -62,12 +50,13 @@ class Updater(QThread):
 				even supported in this run mode), ``False`` if already on
 				the latest version.
 		"""
-		can_update, latest_version, resp = check_for_updates()
+		can_update, latest_version, resp = check_for_updates(force_update)
 
-		if can_update and "__compiled__" not in globals():
-			# Running from source: get_current_exe_path() would resolve to
-			# main.py, and apply_update() would overwrite it. Self-update is
-			# only safe for packaged (Nuitka-compiled) builds.
+		if (can_update and not force_update) and "__compiled__" not in globals():
+			# Running from source: apply_update() launches the installer
+			# against the packaged app's install directory, which doesn't
+			# exist in a dev checkout. Self-update is only safe for
+			# packaged (Nuitka-compiled) builds.
 			self.logger.warning(f"Update {latest_version} available, but self-update is disabled in dev mode.")
 			msg = QMessageBox()
 			msg.setIcon(QMessageBox.Icon.Information)
@@ -77,7 +66,7 @@ class Updater(QThread):
 			msg.exec()
 			return True
 
-		if can_update:
+		if can_update or force_update:
 			msg = QMessageBox(			
 				QMessageBox.Icon.Information,
 				"Update App",
@@ -92,7 +81,7 @@ class Updater(QThread):
 
 			if result == QMessageBox.StandardButton.Yes:
 				self.logger.info("Updating app...")
-				asset = find_asset(resp, f"dev-board-flasher-{latest_version}-windows.zip")
+				asset = find_asset(resp, f"dev-board-flasher-{latest_version}-setup.exe")
 				if asset is None:
 					self.logger.error(f"Expected asset not found in latest release ({latest_version})")
 					err = QMessageBox()
@@ -104,7 +93,7 @@ class Updater(QThread):
 					return True
 
 				self.url = asset["browser_download_url"]
-				self.dest_path = os.path.join(os.environ["TEMP"], "dev-board-flasher.zip")
+				self.dest_path = os.path.join(os.environ["TEMP"], "dev-board-flasher-setup.exe")
 
 				# Extraction/install happens in _on_download_finished once run()
 				# completes the download on the background thread.
@@ -134,14 +123,9 @@ class Updater(QThread):
 			dest_path (str): Path of the downloaded update zip.
 		"""
 		try:
-			extract_dir = os.path.join(os.environ["TEMP"], "wiz_utils_update")
-			os.makedirs(extract_dir, exist_ok=True)
-			new_exe_path = self.extract_zip(dest_path, extract_dir)
-			current_exe_path = get_current_exe_path()
+			self.logger.info(f"Applying update: {dest_path!r}")
 
-			self.logger.info(f"Applying update: {new_exe_path!r} -> {current_exe_path!r} (sys.executable={sys.executable!r})")
-
-			apply_update(new_exe_path, current_exe_path)
+			apply_update(dest_path)
 		except Exception as e:  # noqa: BLE001 - install best-effort; log and move on rather than crash
 			self.logger.error(f"Failed to apply update: {e}")
 

@@ -21,6 +21,12 @@ The app can also be packaged into a standalone executable with [Nuitka](https://
 
 Every push builds both the portable zip and this installer via [`.github/workflows/release.yml`](.github/workflows/release.yml): pushes to `main` attach both as assets on a GitHub Release, while every other branch gets them as a downloadable Actions artifact instead. Pushes to a branch with an open pull request skip this build entirely (including rebases/force-pushes of that branch) — only the test suite below runs for those, via `tests.yml`'s own `pull_request` trigger.
 
+## Updating
+
+Installed builds check the GitHub releases API for a newer version on startup, and on demand via **Help > Check for Updates**; self-update is only supported for compiled/installed builds, not when running from source. If a newer version is found and the user accepts the prompt, the app downloads that release's `dev-board-flasher-{version}-setup.exe` asset and silently re-runs it (`/SILENT /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS`), which closes the running app, reinstalls over the existing install directory, and relaunches it automatically — the same installer described above, so no separate "update" artifact is needed. See `Updater`/`check_for_updates`/`apply_update` in `src/utils/wiz_utils/`.
+
+Passing `--force-update` on the command line skips the version check and always offers the latest release, regardless of whether it's newer than the installed version — useful for testing the update flow itself without waiting for a new release.
+
 ## Running Tests
 
 Install the dev dependencies (`pip install -e ".[dev]"`), then run the suite with `make test`, or directly with `pytest` from the repo root. Tests live under `tests/`, split into `tests/unit` (pure logic, no Qt event loop or real hardware) and `tests/integration` (needs `pytest-qt`/heavier fixtures, e.g. a running `QApplication`); integration tests are marked `@pytest.mark.integration` and can be skipped with `pytest -m "not integration"` for a faster local loop. `tests/fixtures` holds hand-written TOML factories used across both.
