@@ -66,14 +66,14 @@ def test_parse_elf_returns_filename_arch_start_address_and_sections(monkeypatch,
 	)
 
 
-def test_parse_elf_defaults_start_address_to_zero_without_a_vectors_section(monkeypatch, tmp_path):
+def test_parse_elf_defaults_start_address_to_header_address_without_a_vectors_section(monkeypatch, tmp_path):
 	sections = [_FakeSection(".text", 0x0800_0200, 0x1000, "SHT_PROGBITS")]
-	_patch_elffile(monkeypatch, sections)
+	_patch_elffile(monkeypatch, sections, entry=0x5000)
 	filename = _dummy_elf_path(tmp_path)
 
 	_, _, start_addr, _ = ELFParser.parse_elf(filename)
 
-	assert start_addr == 0
+	assert start_addr == 0x5000
 
 
 def test_parse_elf_returns_an_empty_sections_dict_for_a_file_with_no_sections(monkeypatch, tmp_path):

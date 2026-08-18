@@ -1,4 +1,5 @@
 import logging
+import os
 
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtGui import QFont, QFontDatabase, QIcon
@@ -36,24 +37,34 @@ class ELFViewer(QMainWindow, Ui_ElfViewer):
 
 		self.parser = ELFParser()
 		self.elf_file = StoredSettings.ELF_FILE.get("")
+		self.elfFileLineEdit.setText(self.elf_file)
 
 		# Connect event functions
 		self.action_Open.triggered.connect(self.open_elf_file_btn)
 		self.parseElfBtn.clicked.connect(self.parse_elf_file_btn)
+		self.elfFileLineEdit.textEdited.connect(self.elf_file_text_changed)
+		self.openFileBtn.clicked.connect(self.open_elf_file_btn)
 
+		if self.elf_file != "":
+			self.parse_elf_file_btn()
+
+		self.sectionsWidget.setUpdatesEnabled(False)
 		for i in range(self.sectionsWidget.columnCount()):
 			self.sectionsWidget.resizeColumnToContents(i)
+		self.sectionsWidget.setUpdatesEnabled(True)
 
 	def open_elf_file_btn(self):
-		self.elf_file, _ = QFileDialog.getOpenFileName(
+		elf_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			self.elf_file,
+			StoredSettings.ELF_FILE.get(StoredSettings.get_documents_path()),
 			"ELF Files (*.elf)"
 		)
 
-		if self.elf_file:
-			StoredSettings.ELF_FILE.set(self.elf_file)
+		if elf_file:
+			StoredSettings.ELF_FILE.set(elf_file)
+			self.elf_file = elf_file
+			self.elfFileLineEdit.setText(elf_file)
 
 	def parse_elf_file_btn(self):
 		if self.elf_file == "":
@@ -74,8 +85,17 @@ class ELFViewer(QMainWindow, Ui_ElfViewer):
 			new_item.setText(2, f"0x{data[1]:08X}") # Section Size
 			new_item.setText(3, data[2]) # Section Type
 
+		self.sectionsWidget.setUpdatesEnabled(False)
 		for i in range(self.sectionsWidget.columnCount()):
 			self.sectionsWidget.resizeColumnToContents(i)
+		self.sectionsWidget.setUpdatesEnabled(True)
 
 		self.archLineEdit.setText(out[1])
 		self.startAddressLineEdit.setText(f"0x{out[2]:08X}")
+
+	def elf_file_text_changed(self):
+		text = self.elfFileLineEdit.text()
+		
+		if os.path.isfile(text):
+			StoredSettings.ELF_FILE.set(text)
+			self.elf_file = text

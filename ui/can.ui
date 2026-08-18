@@ -16,72 +16,43 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QFormLayout" name="formLayout">
     <item row="0" column="0">
+     <widget class="QLabel" name="dBCFileLabel">
+      <property name="text">
+       <string>DBC File</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="dBCFileLineEdit"/>
+    </item>
+    <item row="3" column="0">
      <widget class="QLabel" name="label_2">
       <property name="text">
        <string>Device</string>
       </property>
      </widget>
     </item>
-    <item row="0" column="1">
+    <item row="3" column="1">
      <widget class="QComboBox" name="deviceSelect"/>
     </item>
-    <item row="1" column="0">
+    <item row="4" column="0">
      <widget class="QLabel" name="label">
       <property name="text">
        <string>Channel</string>
       </property>
      </widget>
     </item>
-    <item row="1" column="1">
+    <item row="4" column="1">
      <widget class="QComboBox" name="channelSelect"/>
     </item>
     <item row="5" column="0">
-     <widget class="QLabel" name="label_3">
+     <widget class="QLabel" name="baudRateLabel">
       <property name="text">
-       <string>Device Information</string>
+       <string>Baud Rate</string>
       </property>
      </widget>
     </item>
     <item row="5" column="1">
-     <widget class="QPlainTextEdit" name="deviceInfo">
-      <property name="sizeAdjustPolicy">
-       <enum>QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents</enum>
-      </property>
-      <property name="readOnly">
-       <bool>true</bool>
-      </property>
-      <property name="backgroundVisible">
-       <bool>false</bool>
-      </property>
-      <property name="placeholderText">
-       <string>No device found</string>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="1">
-     <widget class="QPushButton" name="connectButton">
-      <property name="text">
-       <string>Connect</string>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="1">
-     <widget class="CanLogging" name="canLogs">
-      <property name="editTriggers">
-       <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-      </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
-      </property>
-      <property name="selectionMode">
-       <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
-      </property>
-      <property name="sortingEnabled">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="1">
      <widget class="QComboBox" name="baudRateComboBox">
       <property name="currentIndex">
        <number>3</number>
@@ -108,14 +79,14 @@
       </item>
      </widget>
     </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="baudRateLabel">
+    <item row="6" column="0">
+     <widget class="QLabel" name="useDBCLabel">
       <property name="text">
-       <string>Baud Rate</string>
+       <string>Use DBC File</string>
       </property>
      </widget>
     </item>
-    <item row="3" column="1">
+    <item row="6" column="1">
      <widget class="QCheckBox" name="useDBCCheckBox">
       <property name="checked">
        <bool>true</bool>
@@ -125,12 +96,84 @@
       </property>
      </widget>
     </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="useDBCLabel">
-      <property name="text">
-       <string>Use DBC File</string>
+    <item row="8" column="1">
+     <widget class="CanLogging" name="canLogs">
+      <property name="editTriggers">
+       <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
       </property>
      </widget>
+    </item>
+    <item row="9" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>Device Information</string>
+      </property>
+     </widget>
+    </item>
+    <item row="9" column="1">
+     <widget class="QPlainTextEdit" name="deviceInfo">
+      <property name="sizeAdjustPolicy">
+       <enum>QAbstractScrollArea::SizeAdjustPolicy::AdjustToContents</enum>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+      <property name="backgroundVisible">
+       <bool>false</bool>
+      </property>
+      <property name="placeholderText">
+       <string>No device found</string>
+      </property>
+     </widget>
+    </item>
+    <item row="10" column="1">
+     <widget class="QPushButton" name="connectButton">
+      <property name="text">
+       <string>Connect</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QPushButton" name="openDBCFileBtn">
+      <property name="text">
+       <string>Open File</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <spacer name="horizontalSpacer">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="7" column="1">
+     <spacer name="horizontalSpacer_2">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>40</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
     </item>
    </layout>
   </widget>

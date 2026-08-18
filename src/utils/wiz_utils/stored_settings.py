@@ -84,6 +84,7 @@ class StoredSettings(Enum):
 
 	# CAN Settings
 	CAN_DBC_FILE = "dbc_file"
+	CAN_BAUD_RATE = "can_baud_rate"
 
 	# ELF Parser Settings
 	ELF_FILE = "elf_file"
@@ -215,6 +216,11 @@ class StoredSettings(Enum):
 		os.makedirs(settings_path, exist_ok=True)
 		# Get the absolute path
 		return os.path.join(settings_path, _SETTINGS_FILE)
+
+	@staticmethod
+	def get_documents_path() -> str:
+		"""REturns the OS's standard per-user documents directory."""
+		return QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
 
 	@staticmethod
 	def transfer_settings_to_file():
