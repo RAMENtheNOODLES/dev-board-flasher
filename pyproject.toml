@@ -93,7 +93,6 @@ files = [
     "assets/images.qrc",
     "src/can_logging.py",
     "src/can_viewer.py",
-    "src/deployment/main.build/scons-debug.py",
     "src/elf_viewer.py",
     "src/github_token_ui.py",
     "src/main.py",
