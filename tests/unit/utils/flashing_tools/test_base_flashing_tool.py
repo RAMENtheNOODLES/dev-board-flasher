@@ -165,6 +165,46 @@ def test_write_treats_crlf_as_plain_newline_not_line_overwrite(qapp, tmp_path):
 	assert t.log_box.toPlainText() == "line1\nline2\n"
 
 
+def test_write_treats_crlf_split_across_calls_as_plain_newline(qapp, tmp_path):
+	# readyReadStandardOutput fires with whatever bytes the OS pipe has
+	# buffered at that moment, so a "\r\n" line ending can land with the
+	# "\r" as the last byte of one read and the "\n" as the first byte of
+	# the next -- two separate write() calls. That split must still be
+	# treated as one plain newline, not mistaken for an esptool-style
+	# overwrite that erases the line just written.
+	t = tool(qapp, tmp_path)
+	t.write("line1\r")
+	t.write("\nline2\r\n")
+
+	assert t.log_box.toPlainText() == "line1\nline2\n"
+
+
+def test_write_still_overwrites_line_when_trailing_cr_is_not_followed_by_newline(qapp, tmp_path):
+	# A trailing "\r" with no "\n" arriving right after it in the next call
+	# is a genuine overwrite (e.g. a progress percentage updating in place
+	# across separate write() calls), and must still erase the prior line.
+	t = tool(qapp, tmp_path)
+	t.write("progress: 10%\r")
+	t.write("progress: 20%")
+
+	assert t.log_box.toPlainText() == "progress: 20%"
+
+
+def test_write_treats_doubled_cr_before_newline_as_plain_newline(qapp, tmp_path):
+	# Some CLI tools (e.g. j1939_btl_app.exe) emit "\r\r\n" rather than
+	# "\r\n" -- they write "\r\n" explicitly while stdout is still in the
+	# C runtime's text mode, which re-translates the embedded "\n" into
+	# another "\r\n". A single chunk.replace("\r\n", "\n") only consumes
+	# the trailing "\r\n" of that pair, leaving a stray "\r" that gets
+	# misread as an esptool-style overwrite and erases the line just
+	# written. Every "\r" immediately before a "\n" must collapse away,
+	# no matter how many there are.
+	t = tool(qapp, tmp_path)
+	t.write("line1\r\r\nline2\r\r\n")
+
+	assert t.log_box.toPlainText() == "line1\nline2\n"
+
+
 def test_write_strips_ansi_sgr_codes_from_visible_text(qapp, tmp_path):
 	t = tool(qapp, tmp_path)
 	t.write("\x1b[31mred text\x1b[0m")

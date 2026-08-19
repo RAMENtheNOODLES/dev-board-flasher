@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from enum import Enum, unique
-from typing import Any
+from typing import Any, overload
 
 import keyring
 from cryptography.fernet import Fernet
@@ -80,6 +80,7 @@ class StoredSettings(Enum):
 	CHOSEN_BAUD_RATE = "baud_rate"
 	CHOSEN_BOARD = "selected_board"
 	CHOSEN_TOOL_SETTING = "tool_setting"
+	CHOSEN_TOOL_SUB_SETTING = "tool_sub_setting"
 	REMOTE_CONFIGS = "remote_configs"
 
 	# CAN Settings
@@ -92,30 +93,91 @@ class StoredSettings(Enum):
 	# Cache Settings
 	STORED_CACHE_HASHES = "cache_hashes"
 
-	def get(self, default_val: Any = None) -> Any:
-		"""Retrieves this setting's stored value.
+	@overload
+	def get(self, key: str, default_val: Any = None) -> Any: ...
 
-		Returns:
-			Any: The stored value, or ``None`` if nothing has been saved yet.
-		"""
+	@overload
+	def get(self, default_val: Any = None) -> Any: ...
+
+	def get(self, *args: Any, **kwargs: Any) -> Any:
 		logger = logging.getLogger(__name__)
 		settings = QSettings(self.get_config_path(), QSettings.Format.IniFormat)
 
-		out = settings.value(self.value, default_val)
-		logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out}")
-		return out
+		dict_mode = False
 
+		key: Any = None
+		default_val: Any = None
+
+		if len(args) == 2:
+			key, default_val = args
+			dict_mode = True
+		elif len(args) == 1:
+			default_val = args[0]
+		elif "key" in kwargs or "default_val" in kwargs:
+			key = kwargs.get("key")
+			default_val = kwargs.get("default_val")
+
+			if key:
+				dict_mode = True
+
+		if dict_mode:
+			try:
+				out_dict: dict[str, Any] = dict(settings.value(self.value))
+				logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out_dict}")
+				return out_dict.get(key, default_val)
+			except (ValueError, TypeError):
+				logger.exception("Error")
+				return default_val
+		else:
+			out_non_dict: Any = settings.value(self.value, default_val)
+			logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out_non_dict}")
+			return out_non_dict
+			
+	@overload
+	def set(self, key: str, value: Any) -> None: ...
+
+	@overload
 	def set(self, value: Any) -> None:
 		"""Persists a new value for this setting.
 
 		Args:
 			value (Any): The value to store.
 		"""
+
+	def set(self, *args: Any, **kwargs: Any) -> None:
 		logger = logging.getLogger(__name__)
 		settings = QSettings(self.get_config_path(), QSettings.Format.IniFormat)
 
-		logger.debug(f"Setting setting ({self.name} [{self.value}]) with value: {value}")
-		settings.setValue(self.value, value)
+		dict_mode = False
+
+		key: Any = None
+		value: Any = None
+
+		if len(args) == 2:
+			key, value = args
+			dict_mode = True
+		elif len(args) == 1:
+			value = args[0]
+		elif "key" in kwargs or "value" in kwargs:
+			key = kwargs.get("key")
+			value = kwargs.get("value")
+
+			if key:
+				dict_mode = True
+
+		logger.debug(f"Applying setting ({self.name} [{self.value}]) with value: {value}")
+		if dict_mode:
+			try:
+				modified_value = self.get({})
+				if (isinstance(modified_value, str)):
+					modified_value = {}
+				modified_value[key] = value
+				settings.setValue(self.value, modified_value)
+			except (ValueError, TypeError):
+				logger.exception("Error")
+				return
+		else:
+			settings.setValue(self.value, value)
 
 	@staticmethod
 	def does_encryption_key_exist() -> bool:

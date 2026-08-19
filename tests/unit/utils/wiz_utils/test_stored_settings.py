@@ -55,6 +55,22 @@ def test_get_set_round_trip(isolated_paths):
 	assert StoredSettings.CHOSEN_BOARD.get() == "Arduino UNO R3"
 
 
+def test_get_set_round_trip_dict(isolated_paths):
+	test_val: dict[str, int] = {
+		"Ardunio UNO R3" : 0,
+		"Other board" : 1,
+	}
+
+	temp_store: dict[str, int] = {}
+
+	for key, value in test_val.items():
+		temp_store[key] = value
+		StoredSettings.CHOSEN_TOOL_SETTING.set(key, value)
+		assert StoredSettings.CHOSEN_TOOL_SETTING.get(key, None) == temp_store[key]
+
+	assert StoredSettings.CHOSEN_TOOL_SETTING.get() == temp_store
+
+
 def test_get_returns_default_when_nothing_stored(isolated_paths):
 	assert StoredSettings.CHOSEN_BOARD.get("fallback") == "fallback"
 

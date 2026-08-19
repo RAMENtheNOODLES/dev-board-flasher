@@ -190,11 +190,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		:data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates whether the
 		upload button should be enabled.
 		"""
+		self.setUpdatesEnabled(False)
 		board_idx = self.boardSelect.currentIndex()
 		self.selected_board = self.configurer.get_board_cache()[board_idx]
 		# update flash tool settings
-		tool_settings = StoredSettings.CHOSEN_TOOL_SETTING.get(0)
-		self.logger.debug(f"Chosen tool setting IDX: {tool_settings}")
+		tool_settings_idx = StoredSettings.CHOSEN_TOOL_SETTING.get(self.boardSelect.currentText(), 0)
+		sub_settings_idx = StoredSettings.CHOSEN_TOOL_SUB_SETTING.get(self.boardSelect.currentText(), 0)
+		self.logger.debug(f"Chosen tool setting IDX: {tool_settings_idx}")
 
 		self.flashToolSettings.clear()
 		self.flashToolSubSettingsBox.clear()
@@ -206,7 +208,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				self.flashToolSettings.setVisible(True)
 				self.flashToolSettingsLabel.setVisible(True)
 				self.flashToolSettings.addItems(settings)
-				self.flashToolSettings.setCurrentIndex(int(tool_settings))
+				self.flashToolSettings.setCurrentIndex(int(tool_settings_idx))
 			else:
 				self.flashToolSettings.setVisible(False)
 				self.flashToolSettingsLabel.setVisible(False)
@@ -216,7 +218,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 				self.flashToolSubSettingsLabel.setVisible(True)
 				self.flashToolSubSettingsBox.setVisible(True)
 				self.flashToolSubSettingsBox.addItems(sub_settings)
-				self.flashToolSubSettingsBox.setCurrentIndex(0)
+				self.flashToolSubSettingsBox.setCurrentIndex(int(sub_settings_idx))
 			else:
 				self.flashToolSubSettingsLabel.setVisible(False)
 				self.flashToolSubSettingsBox.setVisible(False)
@@ -224,7 +226,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 			StoredSettings.CHOSEN_BOARD.set(board_idx)
 			self.logger.debug(f"Setting chosen board idx: {board_idx}")
+
+			file_name = StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), "")
+
+			self.fileName.setText(file_name)
+			self.flash_file = file_name
 		self.check_can_upload()
+		self.setUpdatesEnabled(True)
 
 	def check_for_updates_btn(self):
 		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it.
@@ -295,7 +303,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.flash_file = files[0]
 
 			self.fileName.setText(self.flash_file)
-			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.boardSelect.currentText(), self.flash_file)
 			self.check_can_upload()
 
 	def browse_files(self):
@@ -318,13 +326,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flash_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			StoredSettings.CACHED_FILE_TO_FLASH.get(StoredSettings.get_documents_path()),
+			StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), StoredSettings.get_documents_path()),
 			f"Binary Files ({allowed_files});; All Files (*)"
 		)
 
 		if self.flash_file:
 			self.fileName.setText(self.flash_file)
-			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.boardSelect.currentText(), self.flash_file)
 
 			self.logger.debug(f"File ready for upload: {self.flash_file}")
 
@@ -642,7 +650,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.serialTXBox.returnPressed.connect(self.send_serial_data)
 		self.serial.errorOccurred.connect(self.handle_serial_error)
 		self.baudRateBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_BAUD_RATE.set(self.baudRateBox.currentIndex()))
-		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.flashToolSettings.currentIndex()))
+		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.boardSelect.currentText(), self.flashToolSettings.currentIndex()))
+		self.flashToolSubSettingsBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SUB_SETTING.set(self.boardSelect.currentText(), self.flashToolSubSettingsBox.currentIndex()))
 		self.actionGithubPAT.triggered.connect(self.open_github_token_ui)
 		self.actionRemote_Configurations.triggered.connect(self.open_remote_configs_ui)
 		self.action_About.triggered.connect(self.show_about)
@@ -665,7 +674,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.update_selected_board()
 
-		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get("")
+		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), "")
 		if (file_path_str != ""):
 			self.flash_file = str(Path(file_path_str).resolve()).replace("\\", "/")
 		else:

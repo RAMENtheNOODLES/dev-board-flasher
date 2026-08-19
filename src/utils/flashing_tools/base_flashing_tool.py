@@ -162,6 +162,7 @@ class BaseFlashingTool:
 		self.logger = logging.getLogger(__name__)
 
 		self._ansi_format = QTextCharFormat()
+		self._pending_cr = False
 
 		self.config_data = read_toml_file_from_url_or_path(config_file)
 		if self.config_data is None:
@@ -292,6 +293,7 @@ class BaseFlashingTool:
 		prior run doesn't bleed into the new one.
 		"""
 		self._ansi_format = QTextCharFormat()
+		self._pending_cr = False
 
 	def _apply_sgr(self, params: str) -> None:
 		"""Updates ``self._ansi_format`` per an ANSI SGR escape's parameters.
@@ -318,7 +320,7 @@ class BaseFlashingTool:
 			elif 40 <= code <= 47 or 100 <= code <= 107:
 				self._ansi_format.setBackground(QColor(_ANSI_COLORS[code - 10]))
 
-	def _insert_with_cr(self, cursor: QTextCursor, chunk: str) -> None:
+	def _insert_with_cr(self, cursor: QTextCursor, chunk: str, defer_trailing_cr: bool = False) -> None:
 		"""Inserts ``chunk`` at ``cursor``, honoring ``\\r`` line-overwrites.
 
 		esptool-style progress bars print a lone ``\\r`` (not part of a
@@ -328,20 +330,45 @@ class BaseFlashingTool:
 		whenever such a carriage return is seen. A ``\\r\\n`` pair -- an
 		ordinary Windows line ending, e.g. from a ConPTY-attached process --
 		is treated as a plain newline instead, so each new line doesn't
-		erase the one before it.
+		erase the one before it. Some CLI tools (e.g. ``j1939_btl_app.exe``)
+		double up their carriage returns -- ``\\r\\r\\n`` rather than
+		``\\r\\n`` -- because they explicitly write ``\r\n`` while stdout is
+		still in the C runtime's default text mode, which then re-translates
+		that embedded ``\n`` into another ``\r\n``. Collapsing any run of
+		``\\r`` immediately before a ``\\n`` (not just a single one) keeps
+		that from leaving a stray ``\\r`` behind that gets misread as an
+		overwrite and erases the line that was just written.
 
 		Args:
 			cursor (QTextCursor): Cursor positioned in the log box where
 				``chunk`` should be inserted.
 			chunk (str): Text to insert, potentially containing ``\\r``
 				line-overwrite characters but no CSI escape sequences.
+			defer_trailing_cr (bool): If ``chunk`` ends on a lone ``\\r``,
+				don't erase the line yet -- set :attr:`_pending_cr` instead
+				and let the next :meth:`write` call resolve it. ``readyRead-
+				StandardOutput`` fires with whatever bytes the OS pipe
+				happens to have buffered at that moment -- for either
+				backend, plain ``QProcess`` or :class:`ConPtyProcess` -- with
+				no guarantee a ``\\r\\n`` line ending arrives intact in one
+				chunk; erasing eagerly here would mistake a split ending for
+				a progress-bar overwrite and wipe out the line it just wrote.
+				Only ``True`` for the final chunk of a given :meth:`write`
+				call -- a ``\\r`` in the middle of one chunk is definitely
+				followed by more of that same call's text, not by a pairing
+				``\\n`` from a future read.
 		"""
 		if not chunk:
 			return
 
-		chunk = chunk.replace("\r\n", "\n")
-		for i, part in enumerate(chunk.split("\r")):
+		chunk = re.sub(r"\r+\n", "\n", chunk)
+		parts = chunk.split("\r")
+		last_index = len(parts) - 1
+		for i, part in enumerate(parts):
 			if i > 0:
+				if defer_trailing_cr and i == last_index and part == "":
+					self._pending_cr = True
+					return
 				cursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
 				cursor.removeSelectedText()
 			cursor.insertText(part, self._ansi_format)
@@ -376,13 +403,22 @@ class BaseFlashingTool:
 		cursor = self.log_box.textCursor()
 		cursor.movePosition(QTextCursor.MoveOperation.End)
 
+		if self._pending_cr:
+			self._pending_cr = False
+			if not text.startswith("\n"):
+				# The deferred \r wasn't part of a split \r\n -- it really
+				# was a standalone overwrite. Erase the line it belongs to
+				# now that this call's text confirms that.
+				cursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
+				cursor.removeSelectedText()
+
 		pos = 0
 		for match in _CSI_RE.finditer(text):
 			self._insert_with_cr(cursor, text[pos:match.start()])
 			if match.group(2) == "m":
 				self._apply_sgr(match.group(1))
 			pos = match.end()
-		self._insert_with_cr(cursor, text[pos:])
+		self._insert_with_cr(cursor, text[pos:], defer_trailing_cr=True)
 
 		self.log_box.setTextCursor(cursor)
 		self.log_box.ensureCursorVisible()
