@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.8.0-beta"
+version = "0.9.0-beta"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -93,7 +93,6 @@ files = [
     "assets/images.qrc",
     "src/can_logging.py",
     "src/can_viewer.py",
-    "src/deployment/main.build/scons-debug.py",
     "src/elf_viewer.py",
     "src/github_token_ui.py",
     "src/main.py",
