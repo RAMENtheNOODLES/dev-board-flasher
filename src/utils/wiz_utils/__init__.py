@@ -118,7 +118,7 @@ def get_remote_configs(remote_configs: list[str], check_in_config: str, cache: d
 
 	return out
 
-def check_for_updates() -> tuple[bool, str, dict]:
+def check_for_updates(force_update: bool = False) -> tuple[bool, str, dict]:
 	"""Compares the installed version against the latest GitHub release.
 
 	Versions are compared with :func:`packaging.version.parse` (PEP 440),
@@ -151,7 +151,7 @@ def check_for_updates() -> tuple[bool, str, dict]:
 
 			logger.debug(f"Latest version: {latest_version}")
 
-			if (latest_version > ver):
+			if (latest_version > ver) or force_update:
 				# Return the raw tag-derived string (not the PEP 440-normalized
 				# form) since the release workflow names assets directly from
 				# pyproject.toml's version string (e.g. "0.7.0-beta"), which
@@ -206,55 +206,6 @@ def download_update(url: str, dest_path: str, on_progress=None) -> None:
 					if on_progress and total:
 						on_progress(downloaded / total)
 
-def apply_update(new_exe_path, current_exe_path):
-	"""Replaces the running exe with a newly downloaded one and relaunches it, then exits this process.
-
-	Since the currently running exe can't overwrite itself directly, this
-	writes and launches a detached batch script that waits for the process
-	to release its file lock, moves ``new_exe_path`` over ``current_exe_path``,
-	relaunches it, then deletes itself. Does not return: exits this process
-	immediately after handing off to the script.
-
-	Args:
-		new_exe_path: Path to the newly downloaded/extracted executable.
-		current_exe_path: Path of the currently running executable to
-			overwrite, as returned by :func:`get_current_exe_path`.
-	"""
-	# The old exe (or its Nuitka onefile launcher) may still hold its file
-	# locked for a moment after this process exits, so retry the move
-	# instead of assuming one fixed delay is always long enough.
-	bat = f"""
-	@echo off
-	setlocal
-	set "attempts=0"
-
-	:retry
-	move /y "{new_exe_path}" "{current_exe_path}" >nul 2>&1
-	if not exist "{new_exe_path}" goto done
-
-	set /a attempts+=1
-	if %attempts% geq 30 goto failed
-
-	timeout /t 1 /nobreak >nul
-	goto retry
-
-	:done
-	start "" "{current_exe_path}"
-	del "%~f0"
-	goto :eof
-
-	:failed
-	del "%~f0"
-	"""
-	bat_path = os.path.join(os.environ["TEMP"], "update.bat")
-	with open(bat_path, "w") as f:
-		f.write(bat)
-	subprocess.Popen(
-		["cmd", "/c", bat_path],
-		creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
-	)
-	sys.exit(0)
-
 def _get_onefile_launcher_path() -> str | None:
 	"""Resolves the real on-disk path of the running Nuitka onefile exe.
 
@@ -286,25 +237,66 @@ def _get_onefile_launcher_path() -> str | None:
 		return None
 
 def get_current_exe_path() -> str:
-    """Returns the on-disk path of the currently running executable/script.
+	"""Returns the on-disk path of the currently running executable/script.
 
-    For a Nuitka onefile build, ``sys.executable`` points at the
-    temp-extracted child interpreter rather than the installed binary, so
-    this resolves the real launcher path via
-    :func:`_get_onefile_launcher_path` instead (falling back to
-    ``sys.executable`` if that can't be determined). For a plain source run,
-    returns the absolute path of the running script.
+	For a Nuitka onefile build, ``sys.executable`` points at the
+	temp-extracted child interpreter rather than the installed binary, so
+	this resolves the real launcher path via
+	:func:`_get_onefile_launcher_path` instead (falling back to
+	``sys.executable`` if that can't be determined). For a plain source run,
+	returns the absolute path of the running script.
 
-    Returns:
-        str: Path to the currently running executable or script, suitable
-            for passing to :func:`apply_update` as ``current_exe_path``.
-    """
-    if "__compiled__" in globals():
-        # Running as a Nuitka onefile exe
-        return _get_onefile_launcher_path() or sys.executable
-    else:
-        # Running as a plain .py script (dev mode)
-        return os.path.abspath(sys.argv[0])
+	Returns:
+		str: Path to the currently running executable or script, suitable
+			for passing to :func:`apply_update` as ``exe_path``.
+	"""
+	if "__compiled__" in globals():
+		# Running as a Nuitka onefile exe
+		return _get_onefile_launcher_path() or sys.executable
+	else:
+		# Running as a plain .py script (dev mode)
+		return os.path.abspath(sys.argv[0])
+
+def apply_update(installer_path):
+	"""Runs the downloaded installer silently, then relaunches the app once it finishes.
+
+	The installer (built with ``CloseApplications``, see
+	``scripts/installer.iss``) uses Windows Restart Manager to force-close
+	whatever's still holding ``{app}\\upload_wiz.exe`` open before
+	overwriting it. That's *not* necessarily this process, though: for a
+	Nuitka onefile build, the file Restart Manager sees running is the
+	onefile launcher (parent) process, while this Python code runs in a
+	separate child process extracted to a temp directory - so Restart
+	Manager's own restart mechanism (``RmRestart``, which only restarts
+	processes that called ``RegisterApplicationRestart`` on themselves)
+	can't be used to relaunch this app, since we're not the process it
+	closes. Instead, this launches a detached helper script - so it
+	survives this process's own exit or a forced close by Restart Manager -
+	that waits for the installer to finish, then explicitly starts the
+	newly-installed exe.
+
+	Args:
+		installer_path: Path to the downloaded ``*-setup.exe`` installer.
+	"""
+	exe_path = get_current_exe_path()
+
+	# Quoting: cmd's "call" isn't used, so a bare invocation of a quoted
+	# path blocks the .bat until the installer exits, which is what lets
+	# `start` below run only once install (and any Restart-Manager-driven
+	# close of the launcher) has actually finished.
+	bat = f"""
+	@echo off
+	"{installer_path}" /SP- /SILENT /NOICONS /FORCECLOSEAPPLICATIONS
+	start "" "{exe_path}"
+	del "%~f0"
+	"""
+	bat_path = os.path.join(os.environ["TEMP"], "apply_update.bat")
+	with open(bat_path, "w") as f:
+		f.write(bat)
+	subprocess.Popen(
+		["cmd", "/c", bat_path],
+		creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW,
+	)
 
 # Imported last: updater.py does `from . import download_update, ...`, which
 # requires those names to already exist in this module's namespace.

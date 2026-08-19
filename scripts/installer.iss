@@ -23,12 +23,14 @@
 AppId={{4B50CA71-CDD5-4C76-B631-77A9ECF056A1}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={cm:NameAndVersion,{#EscapeConstArgument(MyAppName)},{#EscapeConstArgument(MyAppVersion)}}
+AppVerName={cm:NameAndVersion,{#EscapeConstArgument(MyAppName)},{#EscapeConstArgument(MyAppVersion)}}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\flashwiz
+UsePreviousAppDir=yes
+DisableDirPage=auto
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=..\assets\logo.ico
 ; "ArchitecturesAllowed=x64compatible" specifies that Setup cannot run on anything but x64 and Windows 11 on Arm.
@@ -46,6 +48,13 @@ OutputDir=..\build
 OutputBaseFilename=upload_wiz_setup
 SolidCompression=yes
 WizardStyle=modern dynamic
+; RestartApplications isn't used: for a Nuitka onefile build, the process
+; Restart Manager finds/closes here is the onefile launcher, not the actual
+; app process, so its RmRestart-based relaunch can't reach the app anyway.
+; apply_update() in src/utils/wiz_utils/__init__.py relaunches the app
+; itself via a detached helper instead.
+CloseApplications=yes
+AppMutex=Global\FlashWizMutex
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
