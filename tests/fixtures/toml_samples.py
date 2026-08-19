@@ -59,6 +59,8 @@ def write_tool_toml(
 	initial_address: str | None = None,
 	final_address: str | None = None,
 	next_address: str | None = None,
+	use_pty: bool | None = None,
+	stop_on: list[str] | None = None,
 ) -> Path:
 	if supported_boards is None:
 		supported_boards = ["ARDUINO"]
@@ -92,6 +94,14 @@ def write_tool_toml(
 		if value is not None:
 			progress_bar_extra += f"{key} = '{value}'\n"
 
+	use_pty_toml = ""
+	if use_pty is not None:
+		use_pty_toml = f"use_pty = {str(use_pty).lower()}\n"
+
+	stop_on_toml = ""
+	if stop_on is not None:
+		stop_on_toml = "stop_on = [{}]\n".format(", ".join(f'"{marker}"' for marker in stop_on))
+
 	content = (
 		f'tool_name = "{tool_name}"\n'
 		f'tool_loc = "{tool_loc}"\n'
@@ -100,6 +110,8 @@ def write_tool_toml(
 		f'type = "{tool_type}"\n'
 		f"supported_boards = [{supported_boards_toml}]\n"
 		f"supported_file_types = [{supported_file_types_toml}]\n"
+		f"{use_pty_toml}"
+		f"{stop_on_toml}"
 		f"{custom_settings_toml}"
 		"\n"
 		"[tool_settings.progress_bar]\n"

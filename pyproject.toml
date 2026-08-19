@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.9.0-beta"
+version = "0.10.0-beta"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -114,6 +114,7 @@ files = [
     "src/utils/flashing_tools/__init__.py",
     "src/utils/flashing_tools/base_flashing_tool.py",
     "src/utils/flashing_tools/cli_flashing_tool.py",
+    "src/utils/flashing_tools/conpty_process.py",
     "src/utils/flashing_tools/esp32.py",
     "src/utils/wiz_utils/__init__.py",
     "src/utils/wiz_utils/cache_helper.py",

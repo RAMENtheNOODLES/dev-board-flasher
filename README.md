@@ -59,6 +59,9 @@ Flashing tools are declared as TOML files in `config/flashing_tools/`. See `conf
 | `tool_settings.supported_boards` | List of board types this tool can flash. See `BoardType` for available options. |
 | `tool_settings.supported_file_types` | Glob patterns of firmware files this tool accepts. |
 | `tool_settings.custom_settings` | CLI-only. A table of one or more named settings presets, each a list of command-line arguments passed to the tool, in order. |
+| `tool_settings.custom_settings.sub_settings` | CLI-only, optional. A table of one or more named sub-settings presets, each a table of extra `$variable` values merged in alongside the ones listed in [Available Variables](#available-variables). See [Sub-Settings](#sub-settings) below. |
+| `tool_settings.use_pty` | CLI-only, optional. Runs the tool attached to a pseudo console (ConPTY) instead of a plain pipe. See [Pseudo Console (ConPTY)](#pseudo-console-conpty) below. Defaults to `false`. |
+| `tool_settings.stop_on` | CLI-only, optional. A list of markers that, if seen in the tool's output, cause the process to be killed. See [Auto-Stopping the Process](#auto-stopping-the-process) below. Defaults to an empty list (never force-killed). |
 | `tool_settings.progress_bar` | Optional. Settings controlling how the upload progress bar advances while this tool runs. See [Progress Bar](#progress-bar) below. |
 
 Each key under `tool_settings.custom_settings` (e.g. `default`, `dry_run`) defines a separate argument list for that tool. All of a board's flasher's preset names are shown in the app's settings dropdown next to the upload button; the one selected there is passed as the `settings` argument to `flash()` and determines which argument list is used. A `default` preset is used if none is explicitly selected. See `config/flashing_tools/avrdude.toml`, which defines both a `default` preset and a `dry_run` preset that adds AVRDude's `-n` (no-write) flag.
@@ -97,6 +100,38 @@ Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema
 | `$boardname` | The board's `board_name`. |
 | `$boardtype` | The board's `Type` name (from `board_settings.type`). |
 | `$file` | Path to the firmware file selected for upload. |
+
+A tool can define further variables of its own beyond this fixed list via `sub_settings` (see below).
+
+### Sub-Settings
+
+Some tools need arguments that vary by target in ways the fixed variable list above can't express (e.g. per-board memory offsets). `tool_settings.custom_settings.sub_settings` is a further table of named presets, each mapping extra variable names to values; the preset selected in the app's sub-settings dropdown (next to the main settings dropdown) is passed as the `sub_settings` argument to `flash()`, and its values are merged into the substitution variables available to the `custom_settings` argument list, so they can be referenced the same way (`"$offset"`, etc.). A `default` preset is used if none is explicitly selected; the dropdown itself is hidden whenever a tool defines one preset or fewer, same as the main settings dropdown.
+
+```toml
+[tool_settings.custom_settings]
+default = [
+    "-flash", "$file",
+    "-offset", "$offset", "-size", "$size",
+]
+
+[tool_settings.custom_settings.sub_settings]
+default  = { offset = "0x0000", size = "0x8000" }
+profile2 = { offset = "0x8000", size = "0x8000" }
+```
+
+### Pseudo Console (ConPTY)
+
+Some CLI tools write progress/status via Win32 console APIs (`WriteConsole`, colored `SetConsoleTextAttribute` output) rather than plain stdout writes. Those calls silently no-op when stdout/stderr are plain anonymous pipes -- which is what the tool gets by default -- so such tools produce no captured output at all, even though the same binary logs fine when run in a real terminal window. Setting `tool_settings.use_pty = true` runs the tool attached to a pseudo console (ConPTY) instead, giving it a real console handle so those calls behave as they do interactively. Leave `false`/omitted for tools that just print normally (e.g. AVRDude) -- it's extra overhead a well-behaved tool doesn't need. See `ConPtyProcess` in `src/utils/flashing_tools/conpty_process.py`.
+
+### Auto-Stopping the Process
+
+Some CLI tools finish their real work but then hang on a blocking prompt (e.g. "press enter to exit") instead of exiting on their own, which would otherwise hang the flash indefinitely. `tool_settings.stop_on` is a list of markers; as soon as one is seen in the tool's output, the process is killed. Matching is a plain substring check against each chunk of output, not a regex, so pick a marker that's an exact fragment of the tool's real output:
+
+```toml
+stop_on = ["Press any key to continue"]
+```
+
+Because this force-kills the process rather than letting it exit on its own, the exit code the app reports afterward is a synthetic non-zero value, not whatever code the tool itself would have chosen -- Windows has no way to read back a process's "real" exit code before it actually calls `ExitProcess`.
 
 ## Remote Board and Flashing Tool Configs
 

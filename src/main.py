@@ -182,9 +182,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		available settings presets (from
 		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_settings`),
 		restoring the previously chosen preset from
-		:data:`StoredSettings.CHOSEN_TOOL_SETTING`, persists the new board
-		index to :data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates
-		whether the upload button should be enabled.
+		:data:`StoredSettings.CHOSEN_TOOL_SETTING`, and similarly repopulates
+		``flashToolSubSettingsBox`` from
+		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_sub_settings`.
+		Either dropdown (and its label) is hidden whenever the flasher only
+		has a single preset to choose from. Persists the new board index to
+		:data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates whether the
+		upload button should be enabled.
 		"""
 		board_idx = self.boardSelect.currentIndex()
 		self.selected_board = self.configurer.get_board_cache()[board_idx]
@@ -193,11 +197,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.logger.debug(f"Chosen tool setting IDX: {tool_settings}")
 
 		self.flashToolSettings.clear()
+		self.flashToolSubSettingsBox.clear()
 		if self.selected_board is not None:
 			settings = self.selected_board.Flasher.get_settings()
-			self.logger.debug(f"Updating board settings: {settings}")
-			self.flashToolSettings.addItems(settings)
-			self.flashToolSettings.setCurrentIndex(int(tool_settings))
+			sub_settings = self.selected_board.Flasher.get_sub_settings()
+			self.logger.debug(f"Updating board settings: {settings}, sub_settings: {sub_settings}")
+			if len(settings) > 1:
+				self.flashToolSettings.setVisible(True)
+				self.flashToolSettingsLabel.setVisible(True)
+				self.flashToolSettings.addItems(settings)
+				self.flashToolSettings.setCurrentIndex(int(tool_settings))
+			else:
+				self.flashToolSettings.setVisible(False)
+				self.flashToolSettingsLabel.setVisible(False)
+				self.flashToolSettings.setCurrentIndex(0)
+
+			if len(sub_settings) > 1:
+				self.flashToolSubSettingsLabel.setVisible(True)
+				self.flashToolSubSettingsBox.setVisible(True)
+				self.flashToolSubSettingsBox.addItems(sub_settings)
+				self.flashToolSubSettingsBox.setCurrentIndex(0)
+			else:
+				self.flashToolSubSettingsLabel.setVisible(False)
+				self.flashToolSubSettingsBox.setVisible(False)
+				self.flashToolSubSettingsBox.setCurrentIndex(0)
 
 			StoredSettings.CHOSEN_BOARD.set(board_idx)
 			self.logger.debug(f"Setting chosen board idx: {board_idx}")
@@ -329,8 +352,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		Resolves the board's flashing tool from the cache, points it at the
 		shared log box, and invokes its flash routine on the chosen serial
-		port and file, using the settings preset chosen in
-		``flashToolSettings``. No-op if uploading is not currently allowed.
+		port and file, using the settings/sub-settings presets chosen in
+		``flashToolSettings``/``flashToolSubSettingsBox``. No-op if
+		uploading is not currently allowed.
 		"""
 		if (not self.check_can_upload()):
 			return
@@ -342,7 +366,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			board.Flasher.set_progress_bar(self.progressBar)
 
 			self.uploadBoardButton.setEnabled(False)
-			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText())
+			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText(), self.flashToolSubSettingsBox.currentText())
 			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):

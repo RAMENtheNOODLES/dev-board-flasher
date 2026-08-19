@@ -79,7 +79,7 @@ class Ui_ElfViewer(object):
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.openFileBtn)
 
-        self.verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self.formLayout.setItem(2, QFormLayout.ItemRole.FieldRole, self.verticalSpacer)
 

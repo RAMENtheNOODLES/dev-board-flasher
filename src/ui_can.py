@@ -49,6 +49,11 @@ class Ui_CANViewer(object):
 
         self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.dBCFileLineEdit)
 
+        self.openDBCFileBtn = QPushButton(self.centralwidget)
+        self.openDBCFileBtn.setObjectName(u"openDBCFileBtn")
+
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.openDBCFileBtn)
+
         self.label_2 = QLabel(self.centralwidget)
         self.label_2.setObjectName(u"label_2")
 
@@ -95,6 +100,10 @@ class Ui_CANViewer(object):
 
         self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.useDBCCheckBox)
 
+        self.verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+
+        self.formLayout.setItem(7, QFormLayout.ItemRole.FieldRole, self.verticalSpacer)
+
         self.canLogs = CanLogging(self.centralwidget)
         self.canLogs.setObjectName(u"canLogs")
         self.canLogs.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -122,18 +131,9 @@ class Ui_CANViewer(object):
 
         self.formLayout.setWidget(10, QFormLayout.ItemRole.FieldRole, self.connectButton)
 
-        self.openDBCFileBtn = QPushButton(self.centralwidget)
-        self.openDBCFileBtn.setObjectName(u"openDBCFileBtn")
+        self.verticalSpacer_2 = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.openDBCFileBtn)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.formLayout.setItem(2, QFormLayout.ItemRole.FieldRole, self.horizontalSpacer)
-
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.formLayout.setItem(7, QFormLayout.ItemRole.FieldRole, self.horizontalSpacer_2)
+        self.formLayout.setItem(2, QFormLayout.ItemRole.FieldRole, self.verticalSpacer_2)
 
         CANViewer.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(CANViewer)
@@ -165,6 +165,7 @@ class Ui_CANViewer(object):
         self.action_Start_Logging.setText(QCoreApplication.translate("CANViewer", u"&Start Logging...", None))
         self.actionSto_p_Logging.setText(QCoreApplication.translate("CANViewer", u"Sto&p Logging", None))
         self.dBCFileLabel.setText(QCoreApplication.translate("CANViewer", u"DBC File", None))
+        self.openDBCFileBtn.setText(QCoreApplication.translate("CANViewer", u"Open File", None))
         self.label_2.setText(QCoreApplication.translate("CANViewer", u"Device", None))
         self.label.setText(QCoreApplication.translate("CANViewer", u"Channel", None))
         self.baudRateLabel.setText(QCoreApplication.translate("CANViewer", u"Baud Rate", None))
@@ -177,7 +178,6 @@ class Ui_CANViewer(object):
         self.label_3.setText(QCoreApplication.translate("CANViewer", u"Device Information", None))
         self.deviceInfo.setPlaceholderText(QCoreApplication.translate("CANViewer", u"No device found", None))
         self.connectButton.setText(QCoreApplication.translate("CANViewer", u"Connect", None))
-        self.openDBCFileBtn.setText(QCoreApplication.translate("CANViewer", u"Open File", None))
         self.menu_File.setTitle(QCoreApplication.translate("CANViewer", u"&File", None))
     # retranslateUi
 
