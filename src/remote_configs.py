@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui_remote_configs import Ui_Dialog
+from utils.ui_utils import get_global_font
 from utils.wiz_utils.stored_settings import StoredSettings
 
 
@@ -40,6 +41,10 @@ class RemoteConfigs(QDialog):
 		self.ui.addNewConfigBtn.clicked.connect(self.add_new_item)
 		self.ui.browseConfigBtn.clicked.connect(self.browse_files)
 		self.ui.removeConfigsBtn.clicked.connect(self.remove_items)
+
+		font = get_global_font()
+		if font is not None:
+			self.setFont(font)
 
 		configs: list[str] = StoredSettings.REMOTE_CONFIGS.secure_get([])
 

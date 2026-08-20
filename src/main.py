@@ -17,7 +17,6 @@ from PySide6.QtGui import (
 	QDragLeaveEvent,
 	QDropEvent,
 	QFont,
-	QFontDatabase,
 	QIcon,
 	QPalette,
 	QPixmap,
@@ -36,12 +35,15 @@ from PySide6.QtWidgets import (
 from can_viewer import CANViewer
 from elf_viewer import ELFViewer
 from github_token_ui import GithubTokenUI
+from preferences import Preferences
 from remote_configs import RemoteConfigs
 
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
+from utils.ui_utils import get_global_font
 from utils.wiz_utils import (
+	EXIT_CODE_RESTART,
 	CacheHelper,
 	GithubToken,
 	PlainRunnable,
@@ -50,12 +52,9 @@ from utils.wiz_utils import (
 	USBWorker,
 	WizLogger,
 	get_config_path,
+	reload_app,
 )
 
-# Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
-# MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
-# after picking a new external board/tool directory).
-EXIT_CODE_RESTART = -523904
 
 class AdvancedSplashScreen(QSplashScreen):
 	"""Splash screen shown while :meth:`MainWindow.load` runs its startup tasks.
@@ -172,6 +171,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		"""
 		self.remote_configs_ui = RemoteConfigs(self)
 		self.remote_configs_ui.exec()
+
+	def open_preferences_ui(self):
+		"""Opens the modal **Preferences** dialog (app font, clear-all-settings)."""
+		self.preferences_ui = Preferences(self)
+		self.preferences_ui.exec()
 
 	def update_selected_board(self):
 		"""Updates the currently selected board from the board select dropdown.
@@ -520,23 +524,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		event.accept()
 
-	def clear_all_settings_btn(self):
-		"""Handles **Tools > Clear All Settings**: confirms, then wipes every stored setting.
-
-		Doesn't restart the app, since the wiped values are only re-read the
-		next time each is fetched (e.g. next launch), not held in memory.
-		"""
-		resp = QMessageBox.critical(
-			self, 
-			"Confirm", 
-			"Are you sure you want to clear ALL settings?",
-			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-			QMessageBox.StandardButton.Cancel
-		)
-
-		if resp == QMessageBox.StandardButton.Yes:
-			StoredSettings.clear_all_settings()
-
 	def invalidate_cache_btn(self):
 		"""Handles **Edit > Invalidate Cache**: confirms, then clears the board and GitHub response caches.
 
@@ -555,7 +542,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if resp == QMessageBox.StandardButton.Yes:
 			CacheHelper.invalidate_cache()
 			GithubToken.clear_cache()
-			QApplication.exit(EXIT_CODE_RESTART)
+			reload_app()
 
 	#endregion
 
@@ -584,7 +571,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		QCoreApplication.setApplicationName("flashwiz")
 
 		load_tasks = [
-			(lambda: StoredSettings.transfer_settings_to_file(), "Transferring settings to file..."),
+			# (lambda: StoredSettings.transfer_settings_to_file(), "Transferring settings to file..."),
+			(lambda: StoredSettings.transfer_legacy_settings(), "Transferring legacy settings..."),
 			(self.init_fonts, "Initializing Fonts..."),
 			(self.configure_boards, "Configuring Boards..."),
 			(self.connect_functions, "Connecting functions to event triggers..."),
@@ -613,19 +601,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.activateWindow()
 
 	def init_fonts(self):
-		"""Loads the bundled Nerd Font and applies it as the app's global font."""
-		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
+		"""Loads the bundled Nerd Font (or a stored override) and applies it to the window, including its menu bar.
 
-		if font_id != -1:
-			# 4. Extract the exact internal font family name
-			font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-
-			# 5. Create a font object and apply it globally to the app
-			global_font = QFont(font_family, 12)  # Family name and default size
-			self.setFont(global_font)
-			self.logger.info("Done Initializing Fonts")
-		else:
-			self.logger.error("Error: Could not load font from resources.")
+		See :func:`utils.ui_utils.get_global_font` for why the menu bar
+		needs its font/stylesheet set separately from the rest of the
+		window.
+		"""
+		font = get_global_font()
+		if font is not None:
+			self.setFont(font)
+			self.menuBar().setFont(font)
+			self.menuBar().setStyleSheet(f"QMenuBar, QMenu {{ font: {font.pointSize()}pt '{font.family()}'; }}")
 
 	def configure_boards(self):
 		"""Builds the board cache (local + :data:`StoredSettings.REMOTE_CONFIGS`) and populates the board dropdown."""
@@ -654,10 +640,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flashToolSubSettingsBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SUB_SETTING.set(self.boardSelect.currentText(), self.flashToolSubSettingsBox.currentIndex()))
 		self.actionGithubPAT.triggered.connect(self.open_github_token_ui)
 		self.actionRemote_Configurations.triggered.connect(self.open_remote_configs_ui)
+		self.action_Preferences.triggered.connect(self.open_preferences_ui)
 		self.action_About.triggered.connect(self.show_about)
 
-		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
-		self.actionClear_All_Settings.triggered.connect(self.clear_all_settings_btn)
+		self.action_Reload_App.triggered.connect(lambda: reload_app())
 		self.action_Invalidate_Cache.triggered.connect(self.invalidate_cache_btn)
 
 		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)

@@ -158,7 +158,14 @@ Beyond the remote configs above, the app remembers the following between launche
 - The last CAN DBC file loaded in the CAN viewer (see [Tools](#tools) below).
 - The last ELF file loaded in the ELF parser (see [Tools](#tools) below).
 
-These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) in an INI file under the OS's standard per-user config directory (e.g. `%LOCALAPPDATA%\flashwiz\flash_wiz_settings.ini` on Windows), rather than the Windows registry used by older builds; settings left over from that legacy location are migrated into the file automatically the first time you launch a build with this change. **Tools > Clear All Settings** wipes all of the above (after a confirmation prompt).
+These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) in an INI file under the OS's standard per-user config directory (e.g. `%LOCALAPPDATA%\flashwiz\flash_wiz_settings.ini` on Windows). Each setting's key is namespaced under a section (e.g. `board_flashing/selected_board`); older builds stored the same value under its bare key instead (e.g. `selected_board`), so `StoredSettings.transfer_legacy_settings()` runs as the first startup task on every launch to copy any value still sitting under its old flat key over to its new sectioned one, after first backing up the whole INI file (see `StoredSettings.backup_settings()`). **Edit > Preferences > Clear All Settings** wipes all of the above (after a confirmation prompt).
+
+## Preferences
+
+**Edit > Preferences...** opens a settings dialog with two tabs:
+
+- **General** lets you override the app's font (family and size) via a font picker and size spinner; **Save Settings** stores the choice in `StoredSettings.APP_FONT`/`StoredSettings.APP_FONT_SIZE` and applies it the next time the app starts or is reloaded (**Edit > Reload App**), not immediately, while **Revert to Defaults** clears the override back to the bundled Nerd Font at 11pt. The chosen font applies to every top-level window, including the CAN Viewer and ELF Parser (see `get_global_font` in `src/utils/ui_utils/`).
+- **Advanced** holds **Import Settings**/**Export Settings** (read/write the whole settings file as an INI you pick, backing up the current file first on import; see `StoredSettings.import_settings`/`export_settings`) and **Clear All Settings** (moved here from the old Tools menu). A successful import asks whether to reload the app immediately (**Edit > Reload App**'s `reload_app()`, see `src/utils/wiz_utils/`) to pick up the imported settings right away; declining just refreshes the dialog's own font/size preview instead.
 
 ## Board and Config Cache
 

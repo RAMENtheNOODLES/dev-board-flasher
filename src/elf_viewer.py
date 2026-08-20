@@ -1,12 +1,12 @@
 import logging
 import os
 
-from PySide6.QtCore import QCoreApplication
-from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QTreeWidgetItem
 
 from tools.elf_parser import ELFParser
 from ui_elf_viewer import Ui_ElfViewer
+from utils.ui_utils import get_global_font
 from utils.wiz_utils.stored_settings import StoredSettings
 
 
@@ -19,21 +19,12 @@ class ELFViewer(QMainWindow, Ui_ElfViewer):
 		self.setupUi(self)
 		# Set icon
 		self.setWindowIcon(QIcon(":/logo.png"))
-		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
 		
-		if font_id != -1:
-			# 4. Extract the exact internal font family name
-			font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-		
-			# 5. Create a font object and apply it globally to the app
-			global_font = QFont(font_family, 12)  # Family name and default size
-			self.setFont(global_font)
-			self.logger.info("Done Initializing Fonts")
-		else:
-			self.logger.error("Error: Could not load font from resources.")
-		
-		QCoreApplication.setOrganizationDomain("CookieJAR")
-		QCoreApplication.setApplicationName("flashwiz")
+		font = get_global_font()
+		if font is not None:
+			self.setFont(font)
+			self.menuBar().setFont(font)
+			self.menuBar().setStyleSheet(f"QMenuBar, QMenu {{ font: {font.pointSize()}pt '{font.family()}'; }}")
 
 		self.parser = ELFParser()
 		self.elf_file = StoredSettings.ELF_FILE.get("")

@@ -283,6 +283,8 @@
     <addaction name="separator"/>
     <addaction name="action_Invalidate_Cache"/>
     <addaction name="action_Reload_App"/>
+    <addaction name="separator"/>
+    <addaction name="action_Preferences"/>
    </widget>
    <widget class="QMenu" name="menu_Help">
     <property name="title">
@@ -298,7 +300,6 @@
     <addaction name="actionCANLib_Kvaser"/>
     <addaction name="action_Elf_Parser"/>
     <addaction name="separator"/>
-    <addaction name="actionClear_All_Settings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -369,6 +370,11 @@
   <action name="action_Invalidate_Cache">
    <property name="text">
     <string>&amp;Invalidate Cache</string>
+   </property>
+  </action>
+  <action name="action_Preferences">
+   <property name="text">
+    <string>&amp;Preferences...</string>
    </property>
   </action>
  </widget>
