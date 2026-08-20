@@ -1,0 +1,188 @@
+<!-- markdownlint-disable MD024 -->
+# Changelog
+
+All notable changes to dev-board-flasher are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [1.0.0] - 2026-08-20
+
+First stable release — graduates the app out of beta.
+
+### Added
+
+- **Preferences dialog** (**Edit > Preferences...**):
+  - **General** tab: override the app's font (family and size) via a font
+    picker and size spinner, applied on next app start or reload; **Revert
+    to Defaults** restores the bundled Nerd Font at 11pt. The chosen font
+    applies to every top-level window, including the CAN Viewer and ELF
+    Parser.
+  - **Advanced** tab: **Import Settings**/**Export Settings** (read/write
+    the whole settings file as an INI, backing up the current file first
+    on import) and **Clear All Settings**, moved here from the old Tools
+    menu.
+- **`sub_settings`** for CLI flashing tools: a further named-preset table,
+  selectable via a sub-settings dropdown next to the main settings
+  dropdown, whose values merge into the `$variable` substitutions
+  available to `custom_settings` argument lists — for per-target values
+  (e.g. memory offsets) the fixed variable list can't express.
+- **`tool_settings.use_pty`**: runs a CLI flashing tool attached to a real
+  Windows pseudo console (ConPTY) instead of a plain pipe, for tools that
+  only emit progress/status via Win32 console APIs and would otherwise
+  produce no captured output.
+- **`tool_settings.stop_on`**: a list of substring markers that force-kill
+  a CLI tool's process if it hangs on a blocking prompt after finishing
+  its real work, instead of hanging the flash indefinitely.
+
+### Changed
+
+- Stored settings (`QSettings`) are now namespaced under sections (e.g.
+  `board_flashing/selected_board` instead of a bare `selected_board`).
+  `StoredSettings.transfer_legacy_settings()` runs on every startup to
+  migrate any value still under its old flat key, after first backing up
+  the whole settings INI file.
+
+## [0.9.0-beta] - 2026-08-19
+
+### Added
+
+- Silent installation and a force-update option for the auto-updater.
+
+### Changed
+
+- Improved installer handling and the app relaunch mechanism after an
+  update is applied.
+
+## [0.8.0-beta] - 2026-08-18
+
+### Changed
+
+- Project/version settings housekeeping ahead of the beta line.
+
+## [0.7.1-beta] - 2026-08-18
+
+### Fixed
+
+- Hotfix: the auto-updater compared the PEP 440-normalized version string
+  (e.g. `0.7.0b0`) instead of the SEMVER string (`0.7.0-beta`), which
+  caused update checks to fail.
+
+## [0.7.0-beta] - 2026-08-18
+
+### Added
+
+- ELF parser tool, with UI integration.
+- Windows installer via Inno Setup, plus supporting build tooling and an
+  app logo/icon.
+- GitHub issue templates (bug report, feature request) and an enhanced
+  pull request template.
+- MIT License.
+
+### Changed
+
+- README enhanced with Windows installer instructions; copyright notice
+  updated.
+- Code structure refactored and enhanced across multiple modules.
+
+## [0.6.0-beta] - 2026-08-18
+
+### Added
+
+- CAN viewer tool, integrated into the main application, with USB
+  monitoring, CAN logging, and reload support.
+- Settings/cache persistence and secure credential storage.
+- CI workflows for automated testing and release.
+- A pytest suite covering core business logic.
+
+### Changed
+
+- The `Bitrate` enum is now lazy-loaded, so the app no longer crashes when
+  CANlib isn't installed.
+
+## [0.5.1-alpha] - 2026-08-17
+
+### Fixed
+
+- Hotfix: a critical crash when retrieving a setting that had never been
+  set.
+
+## [0.5.0-alpha] - 2026-08-13
+
+### Added
+
+- GitHub token management and a remote board/flashing-tool config editing
+  UI.
+- Session state persistence and an in-app reload function.
+- Release workflow support for both `main` and `develop` branches, with
+  Nuitka compilation caching.
+
+### Fixed
+
+- Incorrect string formatting in the warning log for an unknown flasher
+  type.
+
+## [0.4.0-alpha] - 2026-08-12
+
+### Added
+
+- Progress bar support for flashing tools, including regex-based
+  detection of hex addresses to drive progress.
+
+## [0.3.1-alpha] - 2026-08-12
+
+### Fixed
+
+- Hotfix: additional logging added, with debug logging enabled to the log
+  file, to aid diagnosing field issues.
+
+## [0.3.0-alpha] - 2026-08-12
+
+### Added
+
+- Auto-update functionality, with accompanying logging enhancements.
+
+## [0.2.0-alpha] - 2026-08-11
+
+### Added
+
+- Custom settings presets for flashing tools, with corresponding
+  documentation updates.
+
+## [0.1.0-alpha] - 2026-08-11
+
+Initial release.
+
+### Added
+
+- Board configuration files and flashing tool implementations for ESP32
+  and AVR targets.
+- Custom font support and initial UI layout.
+- Support for additional boards and flashing tools, with documentation.
+- `FlasherFinder` and `CLIFlashingTool`.
+- Flashing tool configuration and UI enhancements.
+- Revamped installation instructions, UI components, and support for
+  loading configs from external directories.
+- GitHub Actions workflow to release on merge to `main`.
+
+### Fixed
+
+- Build output validation before packaging; Nuitka `extra_args` update.
+- Streamlined virtual environment activation in the CI workflow.
+
+[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.9.0-beta...v1.0.0
+[0.9.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.8.0-beta...v0.9.0-beta
+[0.8.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.7.1-beta...v0.8.0-beta
+[0.7.1-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.7.0-beta...v0.7.1-beta
+[0.7.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.6.0-beta...v0.7.0-beta
+[0.6.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.5.1-alpha...v0.6.0-beta
+[0.5.1-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.5.0-alpha...v0.5.1-alpha
+[0.5.0-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.4.0-alpha...v0.5.0-alpha
+[0.4.0-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.3.1-alpha...v0.4.0-alpha
+[0.3.1-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.3.0-alpha...v0.3.1-alpha
+[0.3.0-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.2.0-alpha...v0.3.0-alpha
+[0.2.0-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.1.0-alpha...v0.2.0-alpha
+[0.1.0-alpha]: https://github.com/RAMENtheNOODLES/dev-board-flasher/releases/tag/v0.1.0-alpha
