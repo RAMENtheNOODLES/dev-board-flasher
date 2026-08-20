@@ -13,7 +13,18 @@ from ..wiz_utils import read_toml_file_from_url_or_path
 if TYPE_CHECKING:
 	from ..board_utils import BoardConfig, BoardType
 
-_CSI_RE = re.compile(r"\x1b\[([0-9;]*)([a-zA-Z])")
+# CSI Pm F per ECMA-48: parameter bytes 0x30-0x3F ("0"-"?", covering digits,
+# ";", and the "?" DEC-private-mode marker used by sequences like win32-input-
+# mode/focus-tracking that ConPTY-attached apps commonly emit), optional
+# intermediate bytes 0x20-0x2F, then a single final byte 0x40-0x7E; or an OSC
+# (Operating System Command) sequence -- e.g. ESC ] 0 ; <window title> BEL,
+# commonly emitted by ConPTY-attached apps to set the console title/icon
+# name -- terminated by BEL (0x07) or ST (ESC \\). group(1)/group(2) are
+# unset for the OSC branch, so the "is this SGR" check below stays False.
+_CSI_RE = re.compile(
+	r"\x1b\[([0-?]*)[ -/]*([@-~])"
+	r"|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)"
+)
 
 # Standard ANSI 16-color palette (SGR codes 30-37 normal, 90-97 bright).
 _ANSI_COLORS = {
@@ -45,14 +56,33 @@ class BaseFlashingTool:
 			types this tool accepts.
 		tool_loc (str): Path to the tool executable, or ``""`` to use the
 			system PATH. Populated from ``tool_loc``.
-		process (QProcess): Process used to run the underlying flashing
-			command.
+		process (QProcess | ConPtyProcess): Process used to run the underlying
+			flashing command. A plain ``QProcess`` by default; a
+			:class:`ConPtyProcess` instead when ``use_pty`` is set, so tools
+			that write via Win32 console APIs still produce captured output.
+		use_pty (bool): Whether to run the tool attached to a pseudo console
+			(see :class:`ConPtyProcess`) instead of a plain ``QProcess``.
+			Populated from ``tool_settings.use_pty``; defaults to ``False``.
+		stop_on (list[str]): Markers that, if seen in the process's output,
+			cause the process to be killed. For tools that finish their real
+			work but then hang on a prompt (e.g. "press enter to exit")
+			rather than exiting on their own. Populated from
+			``tool_settings.stop_on``; defaults to an empty list (never
+			force-killed). See :meth:`read_terminal_stream`.
 		log_box (QTextEdit): Text widget that flashing output is streamed
 			to. Set via :meth:`set_log_box` before calling :meth:`flash`.
 		custom_settings (dict[str, list[str]]): Named presets of tool-specific
 			settings (e.g. ``default``, ``dry_run``), keyed by the name shown
 			in the settings dropdown. Populated from ``tool_settings.custom_settings``
 			by subclasses that support multiple presets. See :meth:`get_settings`.
+		sub_settings (dict[str, dict[str, str]]): Named presets of extra
+			``$variable`` values (e.g. per-board memory offsets), keyed by
+			the name shown in the sub-settings dropdown; each preset is a
+			table of ``variable name -> value`` pairs merged into the
+			substitution variables available to ``custom_settings`` argument
+			lists. Populated from
+			``tool_settings.custom_settings.sub_settings``. See
+			:meth:`get_sub_settings` and :meth:`CLIFlashingTool.flash`.
 		p_bar (QProgressBar): Progress bar widget updated as the flashing
 			process runs. Set via :meth:`set_progress_bar` before calling
 			:meth:`flash`.
@@ -105,6 +135,7 @@ class BaseFlashingTool:
 	supported_file_types: list[str]
 	tool_loc: str = ""
 	custom_settings: dict[str, list[str]]
+	sub_settings: dict[str, dict[str, str]]
 	num_steps = 0
 	step_read = ""
 	step_final = ""
@@ -113,33 +144,25 @@ class BaseFlashingTool:
 	progress_on: list[str]
 
 	def __init__(self, config_file: str) -> None:
-		"""Loads ``config_file`` and sets up the underlying QProcess.
+		"""Loads ``config_file`` and sets up the underlying process.
 
 		Args:
 			config_file (str): Local path or GitHub URL of the tool's
 				configuration TOML file (see
 				:func:`wiz_utils.read_toml_file_from_url_or_path`).
 				Populates ``name``, ``supported_file_types``, ``boards``,
-				``tool_loc``, ``custom_settings``, and the progress-bar
-				settings described in the class docstring.
+				``tool_loc``, ``custom_settings``, ``sub_settings``,
+				``use_pty``, ``stop_on``, and the progress-bar settings
+				described in the class docstring.
 
 		Raises:
 			RuntimeError: If ``config_file`` couldn't be read (e.g. a failed
 				remote fetch).
 		"""
-		# 3. Process Setup
-		self.process = QProcess()
-
 		self.logger = logging.getLogger(__name__)
-		
-		# Merge standard output and standard error into a single stream
-		self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-		
-		# Connect process signals to our custom UI methods
-		self.process.readyReadStandardOutput.connect(self.read_terminal_stream)
-		self.process.finished.connect(self.process_finished)
 
 		self._ansi_format = QTextCharFormat()
+		self._pending_cr = False
 
 		self.config_data = read_toml_file_from_url_or_path(config_file)
 		if self.config_data is None:
@@ -162,11 +185,32 @@ class BaseFlashingTool:
 		self.next_address = self.config_data["tool_settings"].get("progress_bar", {}).get("next_address", "")
 		self.initial_address = self.config_data["tool_settings"].get("progress_bar", {}).get("initial_address", "")
 		self.custom_settings = self.config_data["tool_settings"].get("custom_settings", {})
+		self.sub_settings = self.config_data["tool_settings"].get("custom_settings", {}).get("sub_settings", {})
+		self.use_pty: bool = self.config_data["tool_settings"].get("use_pty", False)
+		self.stop_on: list[str] = self.config_data["tool_settings"].get("stop_on", [])
 
 		# Progress bar regex variables
 		self.final: int|None = None
 		self.next_initial: int|None = None
 		self.step_on = 0
+
+		# 3. Process Setup
+		if self.use_pty:
+			# Some CLI tools write progress/status via Win32 console APIs
+			# (WriteConsole, colored SetConsoleTextAttribute output) rather
+			# than plain stdout writes. Those calls silently no-op against
+			# QProcess's anonymous pipes, so such tools need a real console
+			# handle via ConPTY to produce any captured output at all.
+			from .conpty_process import ConPtyProcess
+			self.process = ConPtyProcess()
+		else:
+			self.process = QProcess()
+			# Merge standard output and standard error into a single stream
+			self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+
+		# Connect process signals to our custom UI methods
+		self.process.readyReadStandardOutput.connect(self.read_terminal_stream)
+		self.process.finished.connect(self.process_finished)
 
 
 	def flash_preamble(self):
@@ -178,7 +222,7 @@ class BaseFlashingTool:
 		self.log_box.append("Starting process...\n")
 		self.logger.info("Starting process...")
 
-	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default") -> bool:
+	def flash(self, board: BoardConfig, port: str, file: str, settings: str = "default", sub_settings: str = "default") -> bool:
 		"""Flashes ``file`` onto ``board`` over ``port``.
 
 		Subclasses must override this to start the actual flashing process.
@@ -190,6 +234,9 @@ class BaseFlashingTool:
 			file (str): Path to the firmware file to flash.
 			settings (str): Name of the settings preset (a key of
 				``custom_settings``) to flash with. Defaults to ``"default"``.
+			sub_settings (str): Name of the sub-settings preset (a key of
+				``sub_settings``) whose ``$variable`` values are merged in
+				alongside ``settings``. Defaults to ``"default"``.
 		"""
 		self.flash_preamble()
 		self.p_bar.setValue(0)
@@ -246,6 +293,7 @@ class BaseFlashingTool:
 		prior run doesn't bleed into the new one.
 		"""
 		self._ansi_format = QTextCharFormat()
+		self._pending_cr = False
 
 	def _apply_sgr(self, params: str) -> None:
 		"""Updates ``self._ansi_format`` per an ANSI SGR escape's parameters.
@@ -272,25 +320,55 @@ class BaseFlashingTool:
 			elif 40 <= code <= 47 or 100 <= code <= 107:
 				self._ansi_format.setBackground(QColor(_ANSI_COLORS[code - 10]))
 
-	def _insert_with_cr(self, cursor: QTextCursor, chunk: str) -> None:
+	def _insert_with_cr(self, cursor: QTextCursor, chunk: str, defer_trailing_cr: bool = False) -> None:
 		"""Inserts ``chunk`` at ``cursor``, honoring ``\\r`` line-overwrites.
 
-		esptool-style progress bars print ``\\r`` to overwrite the current
-		line, so a literal insert would flood the log with dozens of stale
-		lines. This mimics terminal behavior by erasing back to the start
-		of the current line whenever a carriage return is seen.
+		esptool-style progress bars print a lone ``\\r`` (not part of a
+		``\\r\\n`` pair) to overwrite the current line, so a literal insert
+		would flood the log with dozens of stale lines. This mimics
+		terminal behavior by erasing back to the start of the current line
+		whenever such a carriage return is seen. A ``\\r\\n`` pair -- an
+		ordinary Windows line ending, e.g. from a ConPTY-attached process --
+		is treated as a plain newline instead, so each new line doesn't
+		erase the one before it. Some CLI tools (e.g. ``j1939_btl_app.exe``)
+		double up their carriage returns -- ``\\r\\r\\n`` rather than
+		``\\r\\n`` -- because they explicitly write ``\r\n`` while stdout is
+		still in the C runtime's default text mode, which then re-translates
+		that embedded ``\n`` into another ``\r\n``. Collapsing any run of
+		``\\r`` immediately before a ``\\n`` (not just a single one) keeps
+		that from leaving a stray ``\\r`` behind that gets misread as an
+		overwrite and erases the line that was just written.
 
 		Args:
 			cursor (QTextCursor): Cursor positioned in the log box where
 				``chunk`` should be inserted.
 			chunk (str): Text to insert, potentially containing ``\\r``
 				line-overwrite characters but no CSI escape sequences.
+			defer_trailing_cr (bool): If ``chunk`` ends on a lone ``\\r``,
+				don't erase the line yet -- set :attr:`_pending_cr` instead
+				and let the next :meth:`write` call resolve it. ``readyRead-
+				StandardOutput`` fires with whatever bytes the OS pipe
+				happens to have buffered at that moment -- for either
+				backend, plain ``QProcess`` or :class:`ConPtyProcess` -- with
+				no guarantee a ``\\r\\n`` line ending arrives intact in one
+				chunk; erasing eagerly here would mistake a split ending for
+				a progress-bar overwrite and wipe out the line it just wrote.
+				Only ``True`` for the final chunk of a given :meth:`write`
+				call -- a ``\\r`` in the middle of one chunk is definitely
+				followed by more of that same call's text, not by a pairing
+				``\\n`` from a future read.
 		"""
 		if not chunk:
 			return
 
-		for i, part in enumerate(chunk.split("\r")):
+		chunk = re.sub(r"\r+\n", "\n", chunk)
+		parts = chunk.split("\r")
+		last_index = len(parts) - 1
+		for i, part in enumerate(parts):
 			if i > 0:
+				if defer_trailing_cr and i == last_index and part == "":
+					self._pending_cr = True
+					return
 				cursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
 				cursor.removeSelectedText()
 			cursor.insertText(part, self._ansi_format)
@@ -315,6 +393,7 @@ class BaseFlashingTool:
 			int: The number of characters written, matching the file-like
 				``write`` protocol.
 		"""
+		self.logger.debug(f"Raw Text: {text}")
 		if not text:
 			return 0
 
@@ -324,13 +403,22 @@ class BaseFlashingTool:
 		cursor = self.log_box.textCursor()
 		cursor.movePosition(QTextCursor.MoveOperation.End)
 
+		if self._pending_cr:
+			self._pending_cr = False
+			if not text.startswith("\n"):
+				# The deferred \r wasn't part of a split \r\n -- it really
+				# was a standalone overwrite. Erase the line it belongs to
+				# now that this call's text confirms that.
+				cursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
+				cursor.removeSelectedText()
+
 		pos = 0
 		for match in _CSI_RE.finditer(text):
 			self._insert_with_cr(cursor, text[pos:match.start()])
 			if match.group(2) == "m":
 				self._apply_sgr(match.group(1))
 			pos = match.end()
-		self._insert_with_cr(cursor, text[pos:])
+		self._insert_with_cr(cursor, text[pos:], defer_trailing_cr=True)
 
 		self.log_box.setTextCursor(cursor)
 		self.log_box.ensureCursorVisible()
@@ -427,18 +515,27 @@ class BaseFlashingTool:
 	def read_terminal_stream(self):
 		"""Reads buffered process output and appends it to the log box.
 
-		Connected to the underlying process's ``readyReadStandardOutput``
-		signal.
+		Routed through :meth:`write` (the same path ``ESP32`` drives via
+		``redirect_stdout``) so CLI/ConPTY tool output gets the same ANSI
+		SGR parsing and ``\\r`` line-overwrite handling, rather than
+		dumping raw escape codes into the log box. Connected to the
+		underlying process's ``readyReadStandardOutput`` signal.
+
+		If this chunk contains one of ``self.stop_on``'s markers, the
+		process is killed once written -- for tools that finish their real
+		work but then sit on a prompt (e.g. "press enter to exit") instead
+		of exiting on their own, which would otherwise hang the flash
+		indefinitely.
 		"""
 		# Convert the memoryview object explicitly into bytes, then decode it
 		raw_data = self.process.readAllStandardOutput().data()
 		data = bytes(raw_data).decode(errors="ignore")
 
-		self.update_progress_bar(data)
+		self.write(data)
 
-		# Insert the text chunk and automatically snap the scrollbar to the bottom
-		self.log_box.insertPlainText(data)
-		self.log_box.ensureCursorVisible()
+		if any(marker in data for marker in self.stop_on):
+			self.logger.info("Stop-on marker matched in process output; killing process.")
+			self.process.kill()
 
 	def process_finished(self, exit_code, exit_status):
 		"""Appends a success or failure message once the process exits.
@@ -465,7 +562,21 @@ class BaseFlashingTool:
 				the settings dropdown and passing as the ``settings``
 				argument to :meth:`flash`.
 		"""
-		return list(self.custom_settings.keys())
+		out = []
 
-	
+		for key in self.custom_settings:
+			if key != "sub_settings":
+				out.append(key)
+
+		return list(out)
+
+	def get_sub_settings(self) -> list[str]:
+		"""Returns the names of the available sub-settings presets.
+
+		Returns:
+			list[str]: Keys of ``sub_settings``, suitable for populating the
+				sub-settings dropdown and passing as the ``sub_settings``
+				argument to :meth:`flash`.
+		"""
+		return list(self.sub_settings.keys())
 	

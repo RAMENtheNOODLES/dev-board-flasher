@@ -13,9 +13,31 @@ supported_boards = ["ARDUINO", "ESPIDF"]
 # Supported file types
 supported_file_types = ["*.hex", "*.bin"]
 
+# CLI tools only. Set to true if the tool writes progress/status via Win32
+# console APIs (colored text, cursor-positioned progress bars) rather than
+# plain stdout -- those calls produce no captured output at all over a
+# plain pipe, so the tool needs a real pseudo console (ConPTY) attached.
+# Leave false/omitted for tools that just print normally (e.g. avrdude).
+use_pty = false
+
+# Markers that, if seen in the tool's output, cause the process to be
+# killed -- for tools that finish their real work but then hang on a
+# prompt (e.g. "press enter to exit") instead of exiting on their own.
+# Leave empty/omitted for tools that exit on their own.
+stop_on = []
+
 [tool_settings.custom_settings]
 # CLI Arguments see the AVRDude implementation for more details
 default = []
+
+# Optional. A table of named presets of extra $variable values (e.g.
+# per-board memory offsets), merged into the substitution variables
+# available to the argument lists above -- for tools whose arguments vary
+# by target/board in ways a single fixed preset can't express. Selected
+# via the app's sub-settings dropdown; passed as flash()'s sub_settings
+# argument. Leave empty/omitted if the tool doesn't need this.
+[tool_settings.custom_settings.sub_settings]
+default = {}
 
 [tool_settings.progress_bar]
 # Settings relating to how the progress bar gets updated

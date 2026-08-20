@@ -38,11 +38,30 @@
 				},
 				"custom_settings": {
 					"type": "object",
-					"description": "Named presets of CLI arguments, keyed by the name shown in the settings dropdown. $variable substitution is supported (partid, port, baudrate, boardname, boardtype, file).",
+					"description": "Named presets of CLI arguments, keyed by the name shown in the settings dropdown. $variable substitution is supported (partid, port, baudrate, boardname, boardtype, file). The \"sub_settings\" key is reserved -- see its own entry below -- every other key is an argument-list preset.",
+					"properties": {
+						"sub_settings": {
+							"type": "object",
+							"description": "Named presets of extra $variable values (e.g. per-board memory offsets), keyed by the name shown in the sub-settings dropdown; each preset's values are merged into the substitution variables available to the argument-list presets above.",
+							"additionalProperties": {
+								"type": "object",
+								"additionalProperties": { "type": "string" }
+							}
+						}
+					},
 					"additionalProperties": {
 						"type": "array",
 						"items": { "type": "string" }
 					}
+				},
+				"use_pty": {
+					"type": "boolean",
+					"description": "CLI tools only. Run the tool attached to a pseudo console (ConPTY) instead of a plain pipe. Needed for tools that write progress/status via Win32 console APIs (WriteConsole, colored output) rather than plain stdout, which otherwise produce no captured output at all. Defaults to false."
+				},
+				"stop_on": {
+					"type": "array",
+					"description": "Markers that, if seen in the tool's output, cause the process to be killed. For tools that finish their real work but then hang on a prompt (e.g. \"press enter to exit\") rather than exiting on their own, which would otherwise hang the flash indefinitely. Defaults to an empty list (never force-killed).",
+					"items": { "type": "string" }
 				},
 				"progress_bar": {
 					"type": "object",

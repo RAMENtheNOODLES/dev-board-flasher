@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "0.9.0-beta"
+version = "1.0.0"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -96,6 +96,7 @@ files = [
     "src/elf_viewer.py",
     "src/github_token_ui.py",
     "src/main.py",
+    "src/preferences.py",
     "src/remote_configs.py",
     "src/tools/__init__.py",
     "src/tools/can.py",
@@ -114,7 +115,9 @@ files = [
     "src/utils/flashing_tools/__init__.py",
     "src/utils/flashing_tools/base_flashing_tool.py",
     "src/utils/flashing_tools/cli_flashing_tool.py",
+    "src/utils/flashing_tools/conpty_process.py",
     "src/utils/flashing_tools/esp32.py",
+    "src/utils/ui_utils/__init__.py",
     "src/utils/wiz_utils/__init__.py",
     "src/utils/wiz_utils/cache_helper.py",
     "src/utils/wiz_utils/can_worker.py",
@@ -129,5 +132,6 @@ files = [
     "ui/elf_viewer.ui",
     "ui/github_token.ui",
     "ui/main_window.ui",
+    "ui/preferences.ui",
     "ui/remote_configs.ui",
 ]

@@ -11,6 +11,7 @@ import requests
 import tomllib
 import truststore
 from packaging import version
+from PySide6.QtWidgets import QApplication
 
 from ..custom_exceptions.remote_config_error import RemoteConfigError
 from .cache_helper import CacheHelper
@@ -33,6 +34,20 @@ __all__ = [
 # certifi's public bundle, so requests still works behind a corporate
 # TLS-inspecting proxy that signs traffic with an internal root CA.
 truststore.inject_into_ssl()
+
+# Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
+# MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
+# after picking a new external board/tool directory).
+EXIT_CODE_RESTART = -523904
+
+def reload_app():
+	"""Exits the Qt event loop with :data:`EXIT_CODE_RESTART`, telling ``__main__``'s ``app.exec()`` loop to relaunch :class:`main.MainWindow` in-process instead of quitting.
+
+	Used by **Edit > Reload App**, and by :meth:`preferences.Preferences.import_settings_btn`
+	after a successful settings import (if the user opts to reload
+	immediately rather than just refreshing the open dialog).
+	"""
+	QApplication.exit(EXIT_CODE_RESTART)
 
 def get_config_path() -> Path:
 	"""Returns the path to the bundled ``pyproject.toml``, used to read the app's version and repo URL.
