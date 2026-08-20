@@ -16,7 +16,7 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QFormLayout, QHeaderView, QLabel,
+from PySide6.QtWidgets import (QApplication, QGridLayout, QHeaderView, QLabel,
     QLineEdit, QMainWindow, QMenu, QMenuBar,
     QPushButton, QSizePolicy, QSpacerItem, QStatusBar,
     QTreeWidget, QTreeWidgetItem, QWidget)
@@ -30,58 +30,58 @@ class Ui_ElfViewer(object):
         self.action_Open.setObjectName(u"action_Open")
         self.centralwidget = QWidget(ElfViewer)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.formLayout = QFormLayout(self.centralwidget)
-        self.formLayout.setObjectName(u"formLayout")
-        self.sectionsWidget = QTreeWidget(self.centralwidget)
-        self.sectionsWidget.setObjectName(u"sectionsWidget")
+        self.gridLayout = QGridLayout(self.centralwidget)
+        self.gridLayout.setObjectName(u"gridLayout")
+        self.archLineEdit = QLineEdit(self.centralwidget)
+        self.archLineEdit.setObjectName(u"archLineEdit")
+        self.archLineEdit.setReadOnly(True)
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.SpanningRole, self.sectionsWidget)
+        self.gridLayout.addWidget(self.archLineEdit, 4, 1, 1, 1)
 
-        self.parseElfBtn = QPushButton(self.centralwidget)
-        self.parseElfBtn.setObjectName(u"parseElfBtn")
+        self.verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.parseElfBtn)
+        self.gridLayout.addItem(self.verticalSpacer, 2, 1, 1, 1)
 
         self.startAddressLabel = QLabel(self.centralwidget)
         self.startAddressLabel.setObjectName(u"startAddressLabel")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.startAddressLabel)
+        self.gridLayout.addWidget(self.startAddressLabel, 3, 0, 1, 1)
 
         self.startAddressLineEdit = QLineEdit(self.centralwidget)
         self.startAddressLineEdit.setObjectName(u"startAddressLineEdit")
         self.startAddressLineEdit.setReadOnly(True)
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.startAddressLineEdit)
-
-        self.archLabel = QLabel(self.centralwidget)
-        self.archLabel.setObjectName(u"archLabel")
-
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.archLabel)
-
-        self.archLineEdit = QLineEdit(self.centralwidget)
-        self.archLineEdit.setObjectName(u"archLineEdit")
-        self.archLineEdit.setReadOnly(True)
-
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.archLineEdit)
-
-        self.elfFileLabel = QLabel(self.centralwidget)
-        self.elfFileLabel.setObjectName(u"elfFileLabel")
-
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.elfFileLabel)
+        self.gridLayout.addWidget(self.startAddressLineEdit, 3, 1, 1, 1)
 
         self.elfFileLineEdit = QLineEdit(self.centralwidget)
         self.elfFileLineEdit.setObjectName(u"elfFileLineEdit")
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.elfFileLineEdit)
+        self.gridLayout.addWidget(self.elfFileLineEdit, 0, 1, 1, 1)
+
+        self.archLabel = QLabel(self.centralwidget)
+        self.archLabel.setObjectName(u"archLabel")
+
+        self.gridLayout.addWidget(self.archLabel, 4, 0, 1, 1)
+
+        self.elfFileLabel = QLabel(self.centralwidget)
+        self.elfFileLabel.setObjectName(u"elfFileLabel")
+
+        self.gridLayout.addWidget(self.elfFileLabel, 0, 0, 1, 1)
 
         self.openFileBtn = QPushButton(self.centralwidget)
         self.openFileBtn.setObjectName(u"openFileBtn")
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.openFileBtn)
+        self.gridLayout.addWidget(self.openFileBtn, 0, 2, 1, 1)
 
-        self.verticalSpacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.sectionsWidget = QTreeWidget(self.centralwidget)
+        self.sectionsWidget.setObjectName(u"sectionsWidget")
 
-        self.formLayout.setItem(2, QFormLayout.ItemRole.FieldRole, self.verticalSpacer)
+        self.gridLayout.addWidget(self.sectionsWidget, 5, 0, 1, 3)
+
+        self.parseElfBtn = QPushButton(self.centralwidget)
+        self.parseElfBtn.setObjectName(u"parseElfBtn")
+
+        self.gridLayout.addWidget(self.parseElfBtn, 2, 2, 1, 1)
 
         ElfViewer.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(ElfViewer)
@@ -105,16 +105,16 @@ class Ui_ElfViewer(object):
     def retranslateUi(self, ElfViewer):
         ElfViewer.setWindowTitle(QCoreApplication.translate("ElfViewer", u"Elf Viewer", None))
         self.action_Open.setText(QCoreApplication.translate("ElfViewer", u"&Open...", None))
+        self.startAddressLabel.setText(QCoreApplication.translate("ElfViewer", u"Start Address", None))
+        self.archLabel.setText(QCoreApplication.translate("ElfViewer", u"Arch", None))
+        self.elfFileLabel.setText(QCoreApplication.translate("ElfViewer", u"ELF File", None))
+        self.openFileBtn.setText(QCoreApplication.translate("ElfViewer", u"Open File", None))
         ___qtreewidgetitem = self.sectionsWidget.headerItem()
         ___qtreewidgetitem.setText(3, QCoreApplication.translate("ElfViewer", u"Type", None))
         ___qtreewidgetitem.setText(2, QCoreApplication.translate("ElfViewer", u"Size", None))
         ___qtreewidgetitem.setText(1, QCoreApplication.translate("ElfViewer", u"Start Address", None))
         ___qtreewidgetitem.setText(0, QCoreApplication.translate("ElfViewer", u"Name", None))
         self.parseElfBtn.setText(QCoreApplication.translate("ElfViewer", u"Parse Elf File", None))
-        self.startAddressLabel.setText(QCoreApplication.translate("ElfViewer", u"Start Address", None))
-        self.archLabel.setText(QCoreApplication.translate("ElfViewer", u"Arch", None))
-        self.elfFileLabel.setText(QCoreApplication.translate("ElfViewer", u"ELF File", None))
-        self.openFileBtn.setText(QCoreApplication.translate("ElfViewer", u"Open File", None))
         self.menu_File.setTitle(QCoreApplication.translate("ElfViewer", u"&File", None))
     # retranslateUi
 

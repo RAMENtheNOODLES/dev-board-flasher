@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from enum import Enum, unique
-from typing import Any
+from typing import Any, overload
 
 import keyring
 from cryptography.fernet import Fernet
@@ -67,8 +67,11 @@ class StoredSettings(Enum):
 	:meth:`get_config_path` (the OS's standard per-user config directory,
 	via ``QStandardPaths``), rather than the registry/``QSettings`` default
 	scope previously used under the ``CookieJAR``/``wizlog`` organization
-	and application name; :meth:`transfer_settings_to_file` migrates any
-	values left over from that legacy location the first time the app runs
+	and application name (:meth:`transfer_settings_to_file` handled migrating
+	values left over from that legacy location, but is no longer called from
+	app startup); :meth:`transfer_legacy_settings` instead migrates values
+	stored under each member's older flat key (before sections were
+	introduced) to its current sectioned one, the first time the app runs
 	after upgrading. Secrets needing at-rest encryption (currently just
 	:attr:`STORED_CACHE_HASHES`) instead go through :meth:`secure_get`/
 	:meth:`secure_set`, which store a Fernet-encrypted, TTL-limited value in
@@ -76,46 +79,116 @@ class StoredSettings(Enum):
 	in the OS credential store (via ``keyring``).
 	"""
 
-	CACHED_FILE_TO_FLASH = "flash_file"
-	CHOSEN_BAUD_RATE = "baud_rate"
-	CHOSEN_BOARD = "selected_board"
-	CHOSEN_TOOL_SETTING = "tool_setting"
-	REMOTE_CONFIGS = "remote_configs"
+	CACHED_FILE_TO_FLASH = "board_flashing/flash_file"
+	CHOSEN_BAUD_RATE = "board_flashing/baud_rate"
+	CHOSEN_BOARD = "board_flashing/selected_board"
+	CHOSEN_TOOL_SETTING = "board_flashing/tool_setting"
+	CHOSEN_TOOL_SUB_SETTING = "board_flashing/tool_sub_setting"
+	REMOTE_CONFIGS = "board_flashing/remote_configs"
+
+	# App Preferences
+	APP_FONT = "preferences/app_font"
+	APP_FONT_SIZE = "preferences/app_font_size"
 
 	# CAN Settings
-	CAN_DBC_FILE = "dbc_file"
-	CAN_BAUD_RATE = "can_baud_rate"
+	CAN_DBC_FILE = "can_settings/dbc_file"
+	CAN_BAUD_RATE = "can_settings/can_baud_rate"
 
 	# ELF Parser Settings
-	ELF_FILE = "elf_file"
+	ELF_FILE = "elf_settings/elf_file"
 
 	# Cache Settings
-	STORED_CACHE_HASHES = "cache_hashes"
+	STORED_CACHE_HASHES = "protected/cache_hashes"
 
-	def get(self, default_val: Any = None) -> Any:
-		"""Retrieves this setting's stored value.
+	# App related settings (private)
+	NEW_SETTINGS = "app/settings_migrated"
+	"""Internal flag set by :meth:`transfer_legacy_settings` once it has migrated flat keys to sectioned ones, so it only runs once."""
 
-		Returns:
-			Any: The stored value, or ``None`` if nothing has been saved yet.
-		"""
+	@overload
+	def get(self, key: str, default_val: Any = None) -> Any: ...
+
+	@overload
+	def get(self, default_val: Any = None) -> Any: ...
+
+	def get(self, *args: Any, **kwargs: Any) -> Any:
 		logger = logging.getLogger(__name__)
 		settings = QSettings(self.get_config_path(), QSettings.Format.IniFormat)
 
-		out = settings.value(self.value, default_val)
-		logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out}")
-		return out
+		dict_mode = False
 
+		key: Any = None
+		default_val: Any = None
+
+		if len(args) == 2:
+			key, default_val = args
+			dict_mode = True
+		elif len(args) == 1:
+			default_val = args[0]
+		elif "key" in kwargs or "default_val" in kwargs:
+			key = kwargs.get("key")
+			default_val = kwargs.get("default_val")
+
+			if key:
+				dict_mode = True
+
+		if dict_mode:
+			try:
+				out_dict: dict[str, Any] = dict(settings.value(self.value))
+				logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out_dict}")
+				return out_dict.get(key, default_val)
+			except (ValueError, TypeError):
+				logger.exception("Error")
+				return default_val
+		else:
+			out_non_dict: Any = settings.value(self.value, default_val)
+			logger.debug(f"Retrieving setting ({self.name} [{self.value}]) with value: {out_non_dict}")
+			return out_non_dict
+			
+	@overload
+	def set(self, key: str, value: Any) -> None: ...
+
+	@overload
 	def set(self, value: Any) -> None:
 		"""Persists a new value for this setting.
 
 		Args:
 			value (Any): The value to store.
 		"""
+
+	def set(self, *args: Any, **kwargs: Any) -> None:
 		logger = logging.getLogger(__name__)
 		settings = QSettings(self.get_config_path(), QSettings.Format.IniFormat)
 
-		logger.debug(f"Setting setting ({self.name} [{self.value}]) with value: {value}")
-		settings.setValue(self.value, value)
+		dict_mode = False
+
+		key: Any = None
+		value: Any = None
+
+		if len(args) == 2:
+			key, value = args
+			dict_mode = True
+		elif len(args) == 1:
+			value = args[0]
+		elif "key" in kwargs or "value" in kwargs:
+			key = kwargs.get("key")
+			value = kwargs.get("value")
+
+			if key:
+				dict_mode = True
+
+		logger.debug(f"Applying setting ({self.name} [{self.value}]) with value: {value}")
+		if dict_mode:
+			try:
+				modified_value = self.get({})
+				if (isinstance(modified_value, str)):
+					modified_value = {}
+				modified_value[key] = value
+				settings.setValue(self.value, modified_value)
+			except (ValueError, TypeError):
+				logger.exception("Error")
+				return
+		else:
+			settings.setValue(self.value, value)
 
 	@staticmethod
 	def does_encryption_key_exist() -> bool:
@@ -219,7 +292,7 @@ class StoredSettings(Enum):
 
 	@staticmethod
 	def get_documents_path() -> str:
-		"""REturns the OS's standard per-user documents directory."""
+		"""Returns the OS's standard per-user documents directory."""
 		return QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
 
 	@staticmethod
@@ -262,11 +335,180 @@ class StoredSettings(Enum):
 			logger.info("Settings already migrated...")
 
 	@staticmethod
+	def backup_settings() -> None:
+		"""Copies every current setting into a sibling ``.bak``-suffixed INI file, used by :meth:`transfer_legacy_settings`.
+
+		The backup is written next to the real settings file, at
+		:meth:`get_config_path` with ``.bak`` appended, or ``.bak0``,
+		``.bak1``, ... if that path is already taken (e.g. by a previous
+		backup that hasn't been cleaned up), so an existing backup is never
+		overwritten.
+		"""
+		logger = logging.getLogger(__name__)
+		current_settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
+
+		base_backup_ext = ".bak"
+		counter = 0
+
+		while os.path.exists(StoredSettings.get_config_path() + base_backup_ext):
+			base_backup_ext = f".bak{counter}"
+			counter += 1
+
+		backup_path = StoredSettings.get_config_path() + base_backup_ext
+
+		logger.info(f"Backing up settings to {backup_path}")
+
+		backup_settings = QSettings(backup_path, QSettings.Format.IniFormat)
+
+		for key in current_settings.allKeys():
+			value = current_settings.value(key)
+			logger.info(f"Backing up: {key} : {value}")
+
+			backup_settings.setValue(key, value)
+
+	@staticmethod
+	def import_settings(file_path: str) -> None:
+		"""Replaces every stored setting with the contents of an external INI file, used by **Preferences > Import Settings**.
+
+		The current settings file is first backed up via
+		:meth:`backup_settings`, then wiped and repopulated with every key
+		found in ``file_path``. Keys the current settings have that
+		``file_path`` doesn't are removed (not merged), so this is a full
+		replace rather than an overlay; see :meth:`export_settings` for the
+		inverse operation.
+
+		Args:
+			file_path (str): Path to the INI file to import from (typically
+				one previously written by :meth:`export_settings`).
+		"""
+		logger = logging.getLogger(__name__)
+		settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
+		StoredSettings.backup_settings()
+		settings.clear()
+		
+		import_settings = QSettings(file_path, QSettings.Format.IniFormat)
+		logger.info(f"Importing current settings from {file_path}")
+		
+		for key in import_settings.allKeys():
+			value = import_settings.value(key)
+		
+			settings.setValue(key, value)
+		
+		logger.info("Done importing settings...")
+
+	@staticmethod
+	def export_settings(file_path: str) -> None:
+		"""Copies every stored setting to an external INI file, used by **Preferences > Export Settings**.
+
+		Unlike :meth:`backup_settings`, the destination is caller-chosen
+		(typically picked via a file dialog) rather than an auto-numbered
+		sibling of the real settings file, and any existing content at
+		``file_path`` is merged with rather than replaced by the export
+		(matching keys are overwritten, others are left alone).
+
+		Args:
+			file_path (str): Path to the INI file to write the current
+				settings to.
+		"""
+		logger = logging.getLogger(__name__)
+		settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
+
+		export_settings = QSettings(file_path, QSettings.Format.IniFormat)
+		logger.info(f"Exporting current settings to {file_path}")
+
+		for key in settings.allKeys():
+			value = settings.value(key)
+
+			export_settings.setValue(key, value)
+
+		logger.info("Done exporting settings...")
+
+	@staticmethod
 	def clear_all_settings() -> None:
 		"""Wipes every stored setting, used by the **Edit > Clear All Settings** menu action."""
 		logger = logging.getLogger(__name__)
-		settings = QSettings(_SETTINGS_FILE, QSettings.Format.IniFormat)
+		settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
 		logger.info("Clearing ALL settings...")
 		settings.clear()
 		settings.sync()
 		logger.info("Done clearing ALL settings...")
+
+	@staticmethod
+	def transfer_legacy_settings() -> None:
+		"""One-time migration of settings stored under their old flat INI keys to the new sectioned ones.
+
+		Older builds stored each setting directly under its bare key (e.g.
+		``selected_board``); :class:`StoredSettings` members now store it
+		under a sectioned key instead (e.g. ``board_flashing/selected_board``,
+		see the class docstring). Run as the first :class:`main.MainWindow`
+		load task on every startup (in place of :meth:`transfer_settings_to_file`,
+		which handled the earlier registry-to-INI migration and is no longer
+		called), this is a no-op if :attr:`NEW_SETTINGS` is already ``True``
+		(i.e. this has already run once); otherwise it backs up the settings
+		file via :meth:`backup_settings`, then for each :class:`StoredSettings`
+		member copies any value still present under its old flat key over to
+		its new sectioned key, and finally sets :attr:`NEW_SETTINGS` so it
+		won't repeat the backup/migration on the next startup. Old values are
+		left in place unless running from a compiled build, to avoid wiping
+		them before this migration itself has shipped in a release. Compiled
+		builds are detected via ``"__compiled__" in globals()``, the flag
+		Nuitka injects (this project is packaged with Nuitka, not PyInstaller).
+		"""
+		logger = logging.getLogger(__name__)
+		settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
+
+		has_migrated = StoredSettings.NEW_SETTINGS.get(False)
+		logger.debug(f"Has migrated: {has_migrated}")
+		if has_migrated:
+			logger.info("Settings already migrated...")
+			return
+
+		StoredSettings.backup_settings()
+
+		new_settings = [member.value for member in StoredSettings]
+		old_settings = [member.value.split("/")[1] for member in StoredSettings]
+
+		logger.debug(f"Found new settings: ({new_settings}) and old settings: ({old_settings})")
+
+		logger.debug(f"Setting Keys: {settings.allKeys()}")
+
+		for old_setting, new_setting in zip(old_settings, new_settings):
+			logger.debug(f"Old setting: {old_setting}, New Setting: {new_setting}")
+			old_setting_value = settings.value(old_setting)
+			logger.debug(f"Old setting value: {old_setting_value}")
+
+			if old_setting_value is not None:
+				logger.debug(f"Found old setting ({old_setting}) with value: {old_setting_value}, transferring to new setting: {new_setting}")
+				settings.setValue(new_setting, old_setting_value)
+
+				if "__compiled__" in globals():
+					# Only remove the old settings when running from a compiled build.
+					# This should (hopefully) prevent settings from being wiped before this update releases
+					settings.remove(old_setting)
+
+		logger.info("Done migrating settings...")
+		StoredSettings.NEW_SETTINGS.set(True)
+
+	@staticmethod
+	def clear_settings_in_group(group: str) -> None:
+		"""Wipes every stored setting under a single group, leaving the rest of the settings file untouched.
+
+		Unlike :meth:`clear_all_settings`, which wipes the whole settings
+		file, this only removes keys whose section matches ``group``, using
+		``QSettings.beginGroup``/``endGroup`` to scope the removal to that
+		prefix.
+
+		Args:
+			group (str): The section name to clear, i.e. the part of a
+				:class:`StoredSettings` member's key before its ``/`` (e.g.
+				``"can_settings"`` to wipe :attr:`CAN_DBC_FILE` and
+				:attr:`CAN_BAUD_RATE` without touching any other group).
+		"""
+		logger = logging.getLogger(__name__)
+		settings = QSettings(StoredSettings.get_config_path(), QSettings.Format.IniFormat)
+
+		settings.beginGroup(group)
+		for key in settings.allKeys():
+			logger.info(f"Removing key ({key}) in group ({group})")
+			settings.remove(key)
+		settings.endGroup()

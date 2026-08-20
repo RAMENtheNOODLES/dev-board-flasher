@@ -17,7 +17,6 @@ from PySide6.QtGui import (
 	QDragLeaveEvent,
 	QDropEvent,
 	QFont,
-	QFontDatabase,
 	QIcon,
 	QPalette,
 	QPixmap,
@@ -36,12 +35,15 @@ from PySide6.QtWidgets import (
 from can_viewer import CANViewer
 from elf_viewer import ELFViewer
 from github_token_ui import GithubTokenUI
+from preferences import Preferences
 from remote_configs import RemoteConfigs
 
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
+from utils.ui_utils import get_global_font
 from utils.wiz_utils import (
+	EXIT_CODE_RESTART,
 	CacheHelper,
 	GithubToken,
 	PlainRunnable,
@@ -50,12 +52,9 @@ from utils.wiz_utils import (
 	USBWorker,
 	WizLogger,
 	get_config_path,
+	reload_app,
 )
 
-# Sentinel exit code the app.exec() loop in __main__ watches for to relaunch
-# MainWindow in-process instead of exiting (e.g. after Edit > Reload App, or
-# after picking a new external board/tool directory).
-EXIT_CODE_RESTART = -523904
 
 class AdvancedSplashScreen(QSplashScreen):
 	"""Splash screen shown while :meth:`MainWindow.load` runs its startup tasks.
@@ -173,6 +172,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.remote_configs_ui = RemoteConfigs(self)
 		self.remote_configs_ui.exec()
 
+	def open_preferences_ui(self):
+		"""Opens the modal **Preferences** dialog (app font, clear-all-settings)."""
+		self.preferences_ui = Preferences(self)
+		self.preferences_ui.exec()
+
 	def update_selected_board(self):
 		"""Updates the currently selected board from the board select dropdown.
 
@@ -182,26 +186,57 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		available settings presets (from
 		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_settings`),
 		restoring the previously chosen preset from
-		:data:`StoredSettings.CHOSEN_TOOL_SETTING`, persists the new board
-		index to :data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates
-		whether the upload button should be enabled.
+		:data:`StoredSettings.CHOSEN_TOOL_SETTING`, and similarly repopulates
+		``flashToolSubSettingsBox`` from
+		:meth:`~utils.flashing_tools.base_flashing_tool.BaseFlashingTool.get_sub_settings`.
+		Either dropdown (and its label) is hidden whenever the flasher only
+		has a single preset to choose from. Persists the new board index to
+		:data:`StoredSettings.CHOSEN_BOARD`, then re-evaluates whether the
+		upload button should be enabled.
 		"""
+		self.setUpdatesEnabled(False)
 		board_idx = self.boardSelect.currentIndex()
 		self.selected_board = self.configurer.get_board_cache()[board_idx]
 		# update flash tool settings
-		tool_settings = StoredSettings.CHOSEN_TOOL_SETTING.get(0)
-		self.logger.debug(f"Chosen tool setting IDX: {tool_settings}")
+		tool_settings_idx = StoredSettings.CHOSEN_TOOL_SETTING.get(self.boardSelect.currentText(), 0)
+		sub_settings_idx = StoredSettings.CHOSEN_TOOL_SUB_SETTING.get(self.boardSelect.currentText(), 0)
+		self.logger.debug(f"Chosen tool setting IDX: {tool_settings_idx}")
 
 		self.flashToolSettings.clear()
+		self.flashToolSubSettingsBox.clear()
 		if self.selected_board is not None:
 			settings = self.selected_board.Flasher.get_settings()
-			self.logger.debug(f"Updating board settings: {settings}")
-			self.flashToolSettings.addItems(settings)
-			self.flashToolSettings.setCurrentIndex(int(tool_settings))
+			sub_settings = self.selected_board.Flasher.get_sub_settings()
+			self.logger.debug(f"Updating board settings: {settings}, sub_settings: {sub_settings}")
+			if len(settings) > 1:
+				self.flashToolSettings.setVisible(True)
+				self.flashToolSettingsLabel.setVisible(True)
+				self.flashToolSettings.addItems(settings)
+				self.flashToolSettings.setCurrentIndex(int(tool_settings_idx))
+			else:
+				self.flashToolSettings.setVisible(False)
+				self.flashToolSettingsLabel.setVisible(False)
+				self.flashToolSettings.setCurrentIndex(0)
+
+			if len(sub_settings) > 1:
+				self.flashToolSubSettingsLabel.setVisible(True)
+				self.flashToolSubSettingsBox.setVisible(True)
+				self.flashToolSubSettingsBox.addItems(sub_settings)
+				self.flashToolSubSettingsBox.setCurrentIndex(int(sub_settings_idx))
+			else:
+				self.flashToolSubSettingsLabel.setVisible(False)
+				self.flashToolSubSettingsBox.setVisible(False)
+				self.flashToolSubSettingsBox.setCurrentIndex(0)
 
 			StoredSettings.CHOSEN_BOARD.set(board_idx)
 			self.logger.debug(f"Setting chosen board idx: {board_idx}")
+
+			file_name = StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), "")
+
+			self.fileName.setText(file_name)
+			self.flash_file = file_name
 		self.check_can_upload()
+		self.setUpdatesEnabled(True)
 
 	def check_for_updates_btn(self):
 		"""Checks GitHub for a newer release and, if the user accepts, downloads and installs it.
@@ -272,7 +307,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.flash_file = files[0]
 
 			self.fileName.setText(self.flash_file)
-			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.boardSelect.currentText(), self.flash_file)
 			self.check_can_upload()
 
 	def browse_files(self):
@@ -295,13 +330,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.flash_file, _ = QFileDialog.getOpenFileName(
 			self,
 			"Open File",
-			StoredSettings.CACHED_FILE_TO_FLASH.get(StoredSettings.get_documents_path()),
+			StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), StoredSettings.get_documents_path()),
 			f"Binary Files ({allowed_files});; All Files (*)"
 		)
 
 		if self.flash_file:
 			self.fileName.setText(self.flash_file)
-			StoredSettings.CACHED_FILE_TO_FLASH.set(self.flash_file)
+			StoredSettings.CACHED_FILE_TO_FLASH.set(self.boardSelect.currentText(), self.flash_file)
 
 			self.logger.debug(f"File ready for upload: {self.flash_file}")
 
@@ -329,8 +364,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		Resolves the board's flashing tool from the cache, points it at the
 		shared log box, and invokes its flash routine on the chosen serial
-		port and file, using the settings preset chosen in
-		``flashToolSettings``. No-op if uploading is not currently allowed.
+		port and file, using the settings/sub-settings presets chosen in
+		``flashToolSettings``/``flashToolSubSettingsBox``. No-op if
+		uploading is not currently allowed.
 		"""
 		if (not self.check_can_upload()):
 			return
@@ -342,7 +378,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			board.Flasher.set_progress_bar(self.progressBar)
 
 			self.uploadBoardButton.setEnabled(False)
-			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText())
+			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText(), self.flashToolSubSettingsBox.currentText())
 			self.uploadBoardButton.setEnabled(True)
 
 	def toggle_connection(self):
@@ -488,23 +524,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		event.accept()
 
-	def clear_all_settings_btn(self):
-		"""Handles **Tools > Clear All Settings**: confirms, then wipes every stored setting.
-
-		Doesn't restart the app, since the wiped values are only re-read the
-		next time each is fetched (e.g. next launch), not held in memory.
-		"""
-		resp = QMessageBox.critical(
-			self, 
-			"Confirm", 
-			"Are you sure you want to clear ALL settings?",
-			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-			QMessageBox.StandardButton.Cancel
-		)
-
-		if resp == QMessageBox.StandardButton.Yes:
-			StoredSettings.clear_all_settings()
-
 	def invalidate_cache_btn(self):
 		"""Handles **Edit > Invalidate Cache**: confirms, then clears the board and GitHub response caches.
 
@@ -523,7 +542,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		if resp == QMessageBox.StandardButton.Yes:
 			CacheHelper.invalidate_cache()
 			GithubToken.clear_cache()
-			QApplication.exit(EXIT_CODE_RESTART)
+			reload_app()
 
 	#endregion
 
@@ -552,7 +571,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		QCoreApplication.setApplicationName("flashwiz")
 
 		load_tasks = [
-			(lambda: StoredSettings.transfer_settings_to_file(), "Transferring settings to file..."),
+			# (lambda: StoredSettings.transfer_settings_to_file(), "Transferring settings to file..."),
+			(lambda: StoredSettings.transfer_legacy_settings(), "Transferring legacy settings..."),
 			(self.init_fonts, "Initializing Fonts..."),
 			(self.configure_boards, "Configuring Boards..."),
 			(self.connect_functions, "Connecting functions to event triggers..."),
@@ -581,19 +601,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.activateWindow()
 
 	def init_fonts(self):
-		"""Loads the bundled Nerd Font and applies it as the app's global font."""
-		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
+		"""Loads the bundled Nerd Font (or a stored override) and applies it to the window, including its menu bar.
 
-		if font_id != -1:
-			# 4. Extract the exact internal font family name
-			font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-
-			# 5. Create a font object and apply it globally to the app
-			global_font = QFont(font_family, 12)  # Family name and default size
-			self.setFont(global_font)
-			self.logger.info("Done Initializing Fonts")
-		else:
-			self.logger.error("Error: Could not load font from resources.")
+		See :func:`utils.ui_utils.get_global_font` for why the menu bar
+		needs its font/stylesheet set separately from the rest of the
+		window.
+		"""
+		font = get_global_font()
+		if font is not None:
+			self.setFont(font)
+			self.menuBar().setFont(font)
+			self.menuBar().setStyleSheet(f"QMenuBar, QMenu {{ font: {font.pointSize()}pt '{font.family()}'; }}")
 
 	def configure_boards(self):
 		"""Builds the board cache (local + :data:`StoredSettings.REMOTE_CONFIGS`) and populates the board dropdown."""
@@ -618,13 +636,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.serialTXBox.returnPressed.connect(self.send_serial_data)
 		self.serial.errorOccurred.connect(self.handle_serial_error)
 		self.baudRateBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_BAUD_RATE.set(self.baudRateBox.currentIndex()))
-		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.flashToolSettings.currentIndex()))
+		self.flashToolSettings.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SETTING.set(self.boardSelect.currentText(), self.flashToolSettings.currentIndex()))
+		self.flashToolSubSettingsBox.currentIndexChanged.connect(lambda: StoredSettings.CHOSEN_TOOL_SUB_SETTING.set(self.boardSelect.currentText(), self.flashToolSubSettingsBox.currentIndex()))
 		self.actionGithubPAT.triggered.connect(self.open_github_token_ui)
 		self.actionRemote_Configurations.triggered.connect(self.open_remote_configs_ui)
+		self.action_Preferences.triggered.connect(self.open_preferences_ui)
 		self.action_About.triggered.connect(self.show_about)
 
-		self.action_Reload_App.triggered.connect(lambda: QApplication.exit(EXIT_CODE_RESTART))
-		self.actionClear_All_Settings.triggered.connect(self.clear_all_settings_btn)
+		self.action_Reload_App.triggered.connect(lambda: reload_app())
 		self.action_Invalidate_Cache.triggered.connect(self.invalidate_cache_btn)
 
 		self.actionCheck_for_Updates.triggered.connect(self.check_for_updates_btn)
@@ -641,7 +660,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 		self.update_selected_board()
 
-		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get("")
+		file_path_str = StoredSettings.CACHED_FILE_TO_FLASH.get(self.boardSelect.currentText(), "")
 		if (file_path_str != ""):
 			self.flash_file = str(Path(file_path_str).resolve()).replace("\\", "/")
 		else:

@@ -7,12 +7,13 @@ from typing import TextIO
 
 from canlib import Device
 from canlib.frame import Frame
-from PySide6.QtCore import QCoreApplication, QThreadPool, QTimer
-from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtCore import QThreadPool, QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 from tools.can import CAN
 from ui_can import Ui_CANViewer
+from utils.ui_utils import get_global_font
 from utils.wiz_utils.can_worker import CanWorker
 from utils.wiz_utils.stored_settings import StoredSettings
 
@@ -61,21 +62,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.setupUi(self)
 		# Set icon
 		self.setWindowIcon(QIcon(":/logo.png"))
-		font_id = QFontDatabase.addApplicationFont(":/FiraCodeNerdFont-Regular.ttf")
-		
-		if font_id != -1:
-			# 4. Extract the exact internal font family name
-			font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-		
-			# 5. Create a font object and apply it globally to the app
-			global_font = QFont(font_family, 12)  # Family name and default size
-			self.setFont(global_font)
-			self.logger.info("Done Initializing Fonts")
-		else:
-			self.logger.error("Error: Could not load font from resources.")
-		
-		QCoreApplication.setOrganizationDomain("CookieJAR")
-		QCoreApplication.setApplicationName("flashwiz")
+
+		font = get_global_font()
+		if font is not None:
+			self.setFont(font)
+			self.menuBar().setFont(font)
+			self.menuBar().setStyleSheet(f"QMenuBar, QMenu {{ font: {font.pointSize()}pt '{font.family()}'; }}")
 
 		# init CAN
 		try:
