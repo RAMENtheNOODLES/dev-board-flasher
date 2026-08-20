@@ -15,246 +15,220 @@
    <string>Flash Wiz</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QFrame" name="containerWidget">
-    <property name="geometry">
-     <rect>
-      <x>9</x>
-      <y>9</y>
-      <width>925</width>
-      <height>664</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::Shape::StyledPanel</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Shadow::Raised</enum>
-    </property>
-    <widget class="QWidget" name="actualWidget" native="true">
-     <property name="geometry">
-      <rect>
-       <x>1</x>
-       <y>1</y>
-       <width>523</width>
-       <height>402</height>
-      </rect>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <layout class="QGridLayout" name="gridLayout_2">
-      <property name="leftMargin">
-       <number>18</number>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QWidget" name="containerWidget" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
       </property>
-      <property name="topMargin">
-       <number>18</number>
-      </property>
-      <property name="rightMargin">
-       <number>27</number>
-      </property>
-      <property name="bottomMargin">
-       <number>27</number>
-      </property>
-      <item row="11" column="2">
-       <widget class="QPushButton" name="sendTXDataButton">
-        <property name="text">
-         <string>Send Data</string>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Serial TX</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="2" colspan="2">
-       <widget class="QLabel" name="label_2">
-        <property name="text">
-         <string>Serial Connection Settings</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="serialPortsBox"/>
-      </item>
-      <item row="6" column="1">
-       <widget class="QTextEdit" name="logText">
-        <property name="font">
-         <font>
-          <family>FiraCode Nerd Font</family>
-         </font>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="13" column="1">
-       <widget class="QLabel" name="versionLabel">
-        <property name="text">
-         <string>Version 0.0.0</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Logs</string>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="2">
-       <widget class="QComboBox" name="baudRateBox">
-        <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <property name="leftMargin">
+        <number>18</number>
+       </property>
+       <property name="topMargin">
+        <number>18</number>
+       </property>
+       <property name="rightMargin">
+        <number>27</number>
+       </property>
+       <property name="bottomMargin">
+        <number>27</number>
+       </property>
+       <item row="10" column="2">
+        <widget class="QComboBox" name="baudRateBox">
+         <item>
+          <property name="text">
+           <string>9600</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>115200</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>38400</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>57600</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="10" column="3">
+        <widget class="QLabel" name="label">
          <property name="text">
-          <string>9600</string>
+          <string>Baud Rate</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="11" column="3">
+        <widget class="QPushButton" name="serialMonitorButton">
          <property name="text">
-          <string>115200</string>
+          <string>Connect</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QProgressBar" name="progressBar">
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QPushButton" name="refreshCOMPortButton">
          <property name="text">
-          <string>38400</string>
+          <string>Refresh</string>
          </property>
-        </item>
-        <item>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QTextEdit" name="logText">
+         <property name="font">
+          <font>
+           <family>FiraCode Nerd Font</family>
+          </font>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="comLabel">
          <property name="text">
-          <string>57600</string>
+          <string>COM PORT</string>
          </property>
-        </item>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QComboBox" name="flashToolSubSettingsBox"/>
-      </item>
-      <item row="4" column="2">
-       <widget class="QPushButton" name="uploadButton">
-        <property name="text">
-         <string>Open File</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="comLabel">
-        <property name="text">
-         <string>COM PORT</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="flashToolSettingsLabel">
-        <property name="text">
-         <string>Flash Tool Settings</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="QProgressBar" name="progressBar">
-        <property name="value">
-         <number>0</number>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="boardSelectLabel">
-        <property name="text">
-         <string>Board Select</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
-       <widget class="QPushButton" name="uploadBoardButton">
-        <property name="text">
-         <string>Upload to Board</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="boardSelect"/>
-      </item>
-      <item row="6" column="2">
-       <widget class="QPushButton" name="clearLogsButton">
-        <property name="text">
-         <string>Clear Logs</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QComboBox" name="flashToolSettings"/>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="flashToolSubSettingsLabel">
-        <property name="text">
-         <string>Flash Tool Sub-Settings</string>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="3">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Baud Rate</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QLineEdit" name="fileName"/>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="refreshCOMPortButton">
-        <property name="text">
-         <string>Refresh</string>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="1">
-       <widget class="QLineEdit" name="serialTXBox">
-        <property name="font">
-         <font>
-          <family>FiraCode Nerd Font</family>
-         </font>
-        </property>
-        <property name="placeholderText">
-         <string>Type data to send here...</string>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="3">
-       <widget class="QPushButton" name="serialMonitorButton">
-        <property name="text">
-         <string>Connect</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </widget>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="boardSelectLabel">
+         <property name="text">
+          <string>Board Select</string>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="2">
+        <widget class="QPushButton" name="sendTXDataButton">
+         <property name="text">
+          <string>Send Data</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="flashToolSubSettingsLabel">
+         <property name="text">
+          <string>Flash Tool Sub-Settings</string>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="0">
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Serial TX</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="boardSelect"/>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Logs</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="2">
+        <widget class="QPushButton" name="uploadButton">
+         <property name="text">
+          <string>Open File</string>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="1">
+        <widget class="QLabel" name="versionLabel">
+         <property name="text">
+          <string>Version 0.0.0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QComboBox" name="flashToolSettings"/>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="serialPortsBox"/>
+       </item>
+       <item row="6" column="2">
+        <widget class="QPushButton" name="clearLogsButton">
+         <property name="text">
+          <string>Clear Logs</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QLineEdit" name="fileName"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="flashToolSettingsLabel">
+         <property name="text">
+          <string>Flash Tool Settings</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="2" colspan="2">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Serial Connection Settings</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QComboBox" name="flashToolSubSettingsBox"/>
+       </item>
+       <item row="8" column="1">
+        <widget class="QPushButton" name="uploadBoardButton">
+         <property name="text">
+          <string>Upload to Board</string>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="1">
+        <widget class="QLineEdit" name="serialTXBox">
+         <property name="font">
+          <font>
+           <family>FiraCode Nerd Font</family>
+          </font>
+         </property>
+         <property name="placeholderText">
+          <string>Type data to send here...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
    <widget class="VignetteOverlay" name="vignette" native="true">
     <property name="geometry">
      <rect>
-      <x>600</x>
-      <y>600</y>
-      <width>120</width>
-      <height>80</height>
+      <x>0</x>
+      <y>0</y>
+      <width>925</width>
+      <height>664</height>
      </rect>
     </property>
    </widget>

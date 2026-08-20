@@ -16,10 +16,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
-    QLabel, QLineEdit, QMainWindow, QMenu,
-    QMenuBar, QProgressBar, QPushButton, QSizePolicy,
-    QTextEdit, QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QLabel,
+    QLineEdit, QMainWindow, QMenu, QMenuBar,
+    QProgressBar, QPushButton, QSizePolicy, QTextEdit,
+    QWidget)
 
 from vignette_overlay import VignetteOverlay
 import fonts_rc
@@ -60,66 +60,22 @@ class Ui_MainWindow(object):
         self.action_Preferences.setObjectName(u"action_Preferences")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.containerWidget = QFrame(self.centralwidget)
+        self.vignette = VignetteOverlay(self.centralwidget)
+        self.vignette.setObjectName(u"vignette")
+        self.vignette.setGeometry(QRect(0, 0, 925, 664))
+        self.gridLayout = QGridLayout(self.centralwidget)
+        self.gridLayout.setObjectName(u"gridLayout")
+        self.containerWidget = QWidget(self.centralwidget)
         self.containerWidget.setObjectName(u"containerWidget")
-        self.containerWidget.setGeometry(QRect(9, 9, 925, 664))
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.containerWidget.sizePolicy().hasHeightForWidth())
         self.containerWidget.setSizePolicy(sizePolicy)
-        self.containerWidget.setFrameShape(QFrame.Shape.StyledPanel)
-        self.containerWidget.setFrameShadow(QFrame.Shadow.Raised)
-        self.actualWidget = QWidget(self.containerWidget)
-        self.actualWidget.setObjectName(u"actualWidget")
-        self.actualWidget.setGeometry(QRect(1, 1, 523, 402))
-        sizePolicy.setHeightForWidth(self.actualWidget.sizePolicy().hasHeightForWidth())
-        self.actualWidget.setSizePolicy(sizePolicy)
-        self.gridLayout_2 = QGridLayout(self.actualWidget)
+        self.gridLayout_2 = QGridLayout(self.containerWidget)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_2.setContentsMargins(18, 18, 27, 27)
-        self.sendTXDataButton = QPushButton(self.actualWidget)
-        self.sendTXDataButton.setObjectName(u"sendTXDataButton")
-
-        self.gridLayout_2.addWidget(self.sendTXDataButton, 11, 2, 1, 1)
-
-        self.label_4 = QLabel(self.actualWidget)
-        self.label_4.setObjectName(u"label_4")
-
-        self.gridLayout_2.addWidget(self.label_4, 11, 0, 1, 1)
-
-        self.label_2 = QLabel(self.actualWidget)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_2.addWidget(self.label_2, 8, 2, 1, 2)
-
-        self.serialPortsBox = QComboBox(self.actualWidget)
-        self.serialPortsBox.setObjectName(u"serialPortsBox")
-
-        self.gridLayout_2.addWidget(self.serialPortsBox, 0, 1, 1, 1)
-
-        self.logText = QTextEdit(self.actualWidget)
-        self.logText.setObjectName(u"logText")
-        font = QFont()
-        font.setFamilies([u"FiraCode Nerd Font"])
-        self.logText.setFont(font)
-        self.logText.setReadOnly(True)
-
-        self.gridLayout_2.addWidget(self.logText, 6, 1, 1, 1)
-
-        self.versionLabel = QLabel(self.actualWidget)
-        self.versionLabel.setObjectName(u"versionLabel")
-        self.versionLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout_2.addWidget(self.versionLabel, 13, 1, 1, 1)
-
-        self.label_3 = QLabel(self.actualWidget)
-        self.label_3.setObjectName(u"label_3")
-
-        self.gridLayout_2.addWidget(self.label_3, 6, 0, 1, 1)
-
-        self.baudRateBox = QComboBox(self.actualWidget)
+        self.baudRateBox = QComboBox(self.containerWidget)
         self.baudRateBox.addItem("")
         self.baudRateBox.addItem("")
         self.baudRateBox.addItem("")
@@ -128,91 +84,132 @@ class Ui_MainWindow(object):
 
         self.gridLayout_2.addWidget(self.baudRateBox, 10, 2, 1, 1)
 
-        self.flashToolSubSettingsBox = QComboBox(self.actualWidget)
-        self.flashToolSubSettingsBox.setObjectName(u"flashToolSubSettingsBox")
+        self.label = QLabel(self.containerWidget)
+        self.label.setObjectName(u"label")
 
-        self.gridLayout_2.addWidget(self.flashToolSubSettingsBox, 3, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.label, 10, 3, 1, 1)
 
-        self.uploadButton = QPushButton(self.actualWidget)
-        self.uploadButton.setObjectName(u"uploadButton")
+        self.serialMonitorButton = QPushButton(self.containerWidget)
+        self.serialMonitorButton.setObjectName(u"serialMonitorButton")
 
-        self.gridLayout_2.addWidget(self.uploadButton, 4, 2, 1, 1)
+        self.gridLayout_2.addWidget(self.serialMonitorButton, 11, 3, 1, 1)
 
-        self.comLabel = QLabel(self.actualWidget)
-        self.comLabel.setObjectName(u"comLabel")
-
-        self.gridLayout_2.addWidget(self.comLabel, 0, 0, 1, 1)
-
-        self.flashToolSettingsLabel = QLabel(self.actualWidget)
-        self.flashToolSettingsLabel.setObjectName(u"flashToolSettingsLabel")
-
-        self.gridLayout_2.addWidget(self.flashToolSettingsLabel, 2, 0, 1, 1)
-
-        self.progressBar = QProgressBar(self.actualWidget)
+        self.progressBar = QProgressBar(self.containerWidget)
         self.progressBar.setObjectName(u"progressBar")
         self.progressBar.setValue(0)
 
         self.gridLayout_2.addWidget(self.progressBar, 7, 1, 1, 1)
 
-        self.boardSelectLabel = QLabel(self.actualWidget)
-        self.boardSelectLabel.setObjectName(u"boardSelectLabel")
-
-        self.gridLayout_2.addWidget(self.boardSelectLabel, 1, 0, 1, 1)
-
-        self.uploadBoardButton = QPushButton(self.actualWidget)
-        self.uploadBoardButton.setObjectName(u"uploadBoardButton")
-
-        self.gridLayout_2.addWidget(self.uploadBoardButton, 8, 1, 1, 1)
-
-        self.boardSelect = QComboBox(self.actualWidget)
-        self.boardSelect.setObjectName(u"boardSelect")
-
-        self.gridLayout_2.addWidget(self.boardSelect, 1, 1, 1, 1)
-
-        self.clearLogsButton = QPushButton(self.actualWidget)
-        self.clearLogsButton.setObjectName(u"clearLogsButton")
-
-        self.gridLayout_2.addWidget(self.clearLogsButton, 6, 2, 1, 1)
-
-        self.flashToolSettings = QComboBox(self.actualWidget)
-        self.flashToolSettings.setObjectName(u"flashToolSettings")
-
-        self.gridLayout_2.addWidget(self.flashToolSettings, 2, 1, 1, 1)
-
-        self.flashToolSubSettingsLabel = QLabel(self.actualWidget)
-        self.flashToolSubSettingsLabel.setObjectName(u"flashToolSubSettingsLabel")
-
-        self.gridLayout_2.addWidget(self.flashToolSubSettingsLabel, 3, 0, 1, 1)
-
-        self.label = QLabel(self.actualWidget)
-        self.label.setObjectName(u"label")
-
-        self.gridLayout_2.addWidget(self.label, 10, 3, 1, 1)
-
-        self.fileName = QLineEdit(self.actualWidget)
-        self.fileName.setObjectName(u"fileName")
-
-        self.gridLayout_2.addWidget(self.fileName, 4, 1, 1, 1)
-
-        self.refreshCOMPortButton = QPushButton(self.actualWidget)
+        self.refreshCOMPortButton = QPushButton(self.containerWidget)
         self.refreshCOMPortButton.setObjectName(u"refreshCOMPortButton")
 
         self.gridLayout_2.addWidget(self.refreshCOMPortButton, 0, 2, 1, 1)
 
-        self.serialTXBox = QLineEdit(self.actualWidget)
+        self.logText = QTextEdit(self.containerWidget)
+        self.logText.setObjectName(u"logText")
+        font = QFont()
+        font.setFamilies([u"FiraCode Nerd Font"])
+        self.logText.setFont(font)
+        self.logText.setReadOnly(True)
+
+        self.gridLayout_2.addWidget(self.logText, 6, 1, 1, 1)
+
+        self.comLabel = QLabel(self.containerWidget)
+        self.comLabel.setObjectName(u"comLabel")
+
+        self.gridLayout_2.addWidget(self.comLabel, 0, 0, 1, 1)
+
+        self.boardSelectLabel = QLabel(self.containerWidget)
+        self.boardSelectLabel.setObjectName(u"boardSelectLabel")
+
+        self.gridLayout_2.addWidget(self.boardSelectLabel, 1, 0, 1, 1)
+
+        self.sendTXDataButton = QPushButton(self.containerWidget)
+        self.sendTXDataButton.setObjectName(u"sendTXDataButton")
+
+        self.gridLayout_2.addWidget(self.sendTXDataButton, 11, 2, 1, 1)
+
+        self.flashToolSubSettingsLabel = QLabel(self.containerWidget)
+        self.flashToolSubSettingsLabel.setObjectName(u"flashToolSubSettingsLabel")
+
+        self.gridLayout_2.addWidget(self.flashToolSubSettingsLabel, 3, 0, 1, 1)
+
+        self.label_4 = QLabel(self.containerWidget)
+        self.label_4.setObjectName(u"label_4")
+
+        self.gridLayout_2.addWidget(self.label_4, 11, 0, 1, 1)
+
+        self.boardSelect = QComboBox(self.containerWidget)
+        self.boardSelect.setObjectName(u"boardSelect")
+
+        self.gridLayout_2.addWidget(self.boardSelect, 1, 1, 1, 1)
+
+        self.label_3 = QLabel(self.containerWidget)
+        self.label_3.setObjectName(u"label_3")
+
+        self.gridLayout_2.addWidget(self.label_3, 6, 0, 1, 1)
+
+        self.uploadButton = QPushButton(self.containerWidget)
+        self.uploadButton.setObjectName(u"uploadButton")
+
+        self.gridLayout_2.addWidget(self.uploadButton, 4, 2, 1, 1)
+
+        self.versionLabel = QLabel(self.containerWidget)
+        self.versionLabel.setObjectName(u"versionLabel")
+        self.versionLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_2.addWidget(self.versionLabel, 13, 1, 1, 1)
+
+        self.flashToolSettings = QComboBox(self.containerWidget)
+        self.flashToolSettings.setObjectName(u"flashToolSettings")
+
+        self.gridLayout_2.addWidget(self.flashToolSettings, 2, 1, 1, 1)
+
+        self.serialPortsBox = QComboBox(self.containerWidget)
+        self.serialPortsBox.setObjectName(u"serialPortsBox")
+
+        self.gridLayout_2.addWidget(self.serialPortsBox, 0, 1, 1, 1)
+
+        self.clearLogsButton = QPushButton(self.containerWidget)
+        self.clearLogsButton.setObjectName(u"clearLogsButton")
+
+        self.gridLayout_2.addWidget(self.clearLogsButton, 6, 2, 1, 1)
+
+        self.fileName = QLineEdit(self.containerWidget)
+        self.fileName.setObjectName(u"fileName")
+
+        self.gridLayout_2.addWidget(self.fileName, 4, 1, 1, 1)
+
+        self.flashToolSettingsLabel = QLabel(self.containerWidget)
+        self.flashToolSettingsLabel.setObjectName(u"flashToolSettingsLabel")
+
+        self.gridLayout_2.addWidget(self.flashToolSettingsLabel, 2, 0, 1, 1)
+
+        self.label_2 = QLabel(self.containerWidget)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_2.addWidget(self.label_2, 8, 2, 1, 2)
+
+        self.flashToolSubSettingsBox = QComboBox(self.containerWidget)
+        self.flashToolSubSettingsBox.setObjectName(u"flashToolSubSettingsBox")
+
+        self.gridLayout_2.addWidget(self.flashToolSubSettingsBox, 3, 1, 1, 1)
+
+        self.uploadBoardButton = QPushButton(self.containerWidget)
+        self.uploadBoardButton.setObjectName(u"uploadBoardButton")
+
+        self.gridLayout_2.addWidget(self.uploadBoardButton, 8, 1, 1, 1)
+
+        self.serialTXBox = QLineEdit(self.containerWidget)
         self.serialTXBox.setObjectName(u"serialTXBox")
         self.serialTXBox.setFont(font)
 
         self.gridLayout_2.addWidget(self.serialTXBox, 11, 1, 1, 1)
 
-        self.serialMonitorButton = QPushButton(self.actualWidget)
-        self.serialMonitorButton.setObjectName(u"serialMonitorButton")
 
-        self.gridLayout_2.addWidget(self.serialMonitorButton, 11, 3, 1, 1)
+        self.gridLayout.addWidget(self.containerWidget, 0, 0, 1, 1)
 
-        self.vignette = VignetteOverlay(self.centralwidget)
-        self.vignette.setObjectName(u"vignette")
-        self.vignette.setGeometry(QRect(600, 600, 120, 80))
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
@@ -265,27 +262,27 @@ class Ui_MainWindow(object):
         self.actionClear_All_Settings.setText(QCoreApplication.translate("MainWindow", u"Clear All &Settings", None))
         self.action_Invalidate_Cache.setText(QCoreApplication.translate("MainWindow", u"&Invalidate Cache", None))
         self.action_Preferences.setText(QCoreApplication.translate("MainWindow", u"&Preferences...", None))
-        self.sendTXDataButton.setText(QCoreApplication.translate("MainWindow", u"Send Data", None))
-        self.label_4.setText(QCoreApplication.translate("MainWindow", u"Serial TX", None))
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Serial Connection Settings", None))
-        self.versionLabel.setText(QCoreApplication.translate("MainWindow", u"Version 0.0.0", None))
-        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Logs", None))
         self.baudRateBox.setItemText(0, QCoreApplication.translate("MainWindow", u"9600", None))
         self.baudRateBox.setItemText(1, QCoreApplication.translate("MainWindow", u"115200", None))
         self.baudRateBox.setItemText(2, QCoreApplication.translate("MainWindow", u"38400", None))
         self.baudRateBox.setItemText(3, QCoreApplication.translate("MainWindow", u"57600", None))
 
-        self.uploadButton.setText(QCoreApplication.translate("MainWindow", u"Open File", None))
-        self.comLabel.setText(QCoreApplication.translate("MainWindow", u"COM PORT", None))
-        self.flashToolSettingsLabel.setText(QCoreApplication.translate("MainWindow", u"Flash Tool Settings", None))
-        self.boardSelectLabel.setText(QCoreApplication.translate("MainWindow", u"Board Select", None))
-        self.uploadBoardButton.setText(QCoreApplication.translate("MainWindow", u"Upload to Board", None))
-        self.clearLogsButton.setText(QCoreApplication.translate("MainWindow", u"Clear Logs", None))
-        self.flashToolSubSettingsLabel.setText(QCoreApplication.translate("MainWindow", u"Flash Tool Sub-Settings", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Baud Rate", None))
-        self.refreshCOMPortButton.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
-        self.serialTXBox.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type data to send here...", None))
         self.serialMonitorButton.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
+        self.refreshCOMPortButton.setText(QCoreApplication.translate("MainWindow", u"Refresh", None))
+        self.comLabel.setText(QCoreApplication.translate("MainWindow", u"COM PORT", None))
+        self.boardSelectLabel.setText(QCoreApplication.translate("MainWindow", u"Board Select", None))
+        self.sendTXDataButton.setText(QCoreApplication.translate("MainWindow", u"Send Data", None))
+        self.flashToolSubSettingsLabel.setText(QCoreApplication.translate("MainWindow", u"Flash Tool Sub-Settings", None))
+        self.label_4.setText(QCoreApplication.translate("MainWindow", u"Serial TX", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"Logs", None))
+        self.uploadButton.setText(QCoreApplication.translate("MainWindow", u"Open File", None))
+        self.versionLabel.setText(QCoreApplication.translate("MainWindow", u"Version 0.0.0", None))
+        self.clearLogsButton.setText(QCoreApplication.translate("MainWindow", u"Clear Logs", None))
+        self.flashToolSettingsLabel.setText(QCoreApplication.translate("MainWindow", u"Flash Tool Settings", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Serial Connection Settings", None))
+        self.uploadBoardButton.setText(QCoreApplication.translate("MainWindow", u"Upload to Board", None))
+        self.serialTXBox.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type data to send here...", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"&Edit", None))
         self.menu_Help.setTitle(QCoreApplication.translate("MainWindow", u"&Help", None))

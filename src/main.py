@@ -261,12 +261,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		Returns:
 			bool: The result of the base class's event filter handling.
 		"""
-		# When the window scales, resize the overlay to fill the screen
+		# When the window scales, resize the overlay to fill the screen.
+		# containerWidget no longer needs a manual resize here: it's a
+		# QGridLayout item now, so Qt keeps it in sync with centralwidget
+		# on its own.
 		if event.type() == QEvent.Type.Resize:
 			self.vignette.resize(self.size())
 			self.vignette.move(0, 0)
-			self.containerWidget.resize(self.centralWidget().size())
-			self.actualWidget.resize(self.centralWidget().size())
 		return super().eventFilter(watched, event)
 
 	def dragEnterEvent(self, event: QDragEnterEvent):
