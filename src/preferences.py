@@ -1,8 +1,7 @@
 import logging
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from ui_preferences import Ui_PreferencesWindow
 from utils.ui_utils import get_global_font

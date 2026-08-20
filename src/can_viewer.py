@@ -7,8 +7,8 @@ from typing import TextIO
 
 from canlib import Device
 from canlib.frame import Frame
-from PySide6.QtCore import QCoreApplication, QThreadPool, QTimer
-from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtCore import QThreadPool, QTimer
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 from tools.can import CAN
