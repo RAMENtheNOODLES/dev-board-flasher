@@ -1,5 +1,6 @@
 import logging
 
+from PySide6.QtCore import QFile, QIODevice, QTextStream
 from PySide6.QtGui import QFont, QFontDatabase
 
 from ..wiz_utils import StoredSettings
@@ -45,4 +46,30 @@ def get_global_font() -> QFont|None:
 		return global_font
 	else:
 		logger.error("Error: Could not load font from resources.")
+		return None
+
+
+def get_global_stylesheet() -> str|None:
+	"""Loads the bundled application stylesheet from resources.
+
+	Reads the embedded ``style.qss`` resource (compiled from
+	``assets/style.qss`` via ``assets/images.qrc``), meant to be applied
+	once via ``QApplication.setStyleSheet()`` so it cascades to every
+	top-level window, including ones created later (e.g. dialogs).
+
+	Returns:
+		str | None: The stylesheet's contents, or ``None`` if the bundled
+			resource failed to load.
+	"""
+	logger = logging.getLogger(__name__)
+
+	stylesheet_file = QFile(":/style.qss")
+
+	if stylesheet_file.open(QIODevice.OpenModeFlag.ReadOnly | QIODevice.OpenModeFlag.Text):
+		stylesheet = QTextStream(stylesheet_file).readAll()
+		stylesheet_file.close()
+		logger.info("Done Initializing Stylesheet")
+		return stylesheet
+	else:
+		logger.error("Error: Could not load stylesheet from resources.")
 		return None

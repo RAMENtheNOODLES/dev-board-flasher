@@ -41,7 +41,7 @@ from remote_configs import RemoteConfigs
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
-from utils.ui_utils import get_global_font
+from utils.ui_utils import get_global_font, get_global_stylesheet
 from utils.wiz_utils import (
 	EXIT_CODE_RESTART,
 	CacheHelper,
@@ -750,6 +750,10 @@ if __name__ == "__main__":
 	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
 	logger = logging.getLogger(__name__)
 
+	stylesheet = get_global_stylesheet()
+	if stylesheet:
+		app.setStyleSheet(stylesheet)
+
 	if os.name == 'nt':
 		# Named mutex the installer looks for (AppMutex in scripts/installer.iss)
 		# to detect this app is running and close it during a silent
@@ -775,10 +779,20 @@ if __name__ == "__main__":
 			ver = config["project"]["version"]
 
 		logger.info(f"Version {ver}")
-		
+
 		if os.name == 'nt':
 			appid = f"cookiejar.flashwiz.{ver}" # Custom unique string
 			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+
+		# Once a QApplication-level stylesheet is set, Qt resolves the font
+		# of every styled widget from QApplication.font() rather than the
+		# font inherited from its parent, so per-window self.setFont() calls
+		# alone no longer reach child widgets. Re-read on every loop pass
+		# (not just once before the loop) so a font changed via Preferences
+		# takes effect on the reload it triggers.
+		app_font = get_global_font()
+		if app_font is not None:
+			app.setFont(app_font)
 
 		try:
 			window = MainWindow()
