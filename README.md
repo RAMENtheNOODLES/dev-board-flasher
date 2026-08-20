@@ -75,7 +75,7 @@ Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema
 | Key | Description |
 | --- | --- |
 | `method` | How progress is derived from the tool's output: `"none"`, `"step_array"`, or `"regex"`. |
-| `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where each matched step advances the bar by `100 // num_steps`. |
+| `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where the bar's maximum is set to `num_steps - 1` and each matched step advances the bar's value by `1`, clamped at that maximum. |
 | `inc_step_on` | `"step_array"` only. A list of markers to watch for in the tool's output, in order. Each time the current marker is found, the bar advances and moves on to the next marker, wrapping back to the first once the list is exhausted. |
 | `regex_method` | `"regex"` only. Which regex strategy to use: `"normal"` (current/total counts) or `"hex"` (hex memory addresses). Defaults to `"normal"`. |
 | `step_read_regex` | `"regex"` with `regex_method = "normal"` only. A regular expression matching the current step count in the tool's output (e.g. the `12` in `"12/50"`). |

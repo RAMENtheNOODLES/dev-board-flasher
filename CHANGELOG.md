@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-20
+
+### Fixed
+
+- `step_array` progress bar: steps now advance the bar by a fixed count of
+  `1` against a maximum of `num_steps - 1`, instead of by
+  `100 // num_steps` against an implicit 0-100 range, which could over- or
+  under-shoot a full bar depending on `num_steps`. The bar's value is now
+  also clamped at its maximum.
+
 ## [1.0.0] - 2026-08-20
 
 First stable release — graduates the app out of beta.
@@ -172,7 +182,8 @@ Initial release.
 - Build output validation before packaging; Nuitka `extra_args` update.
 - Streamlined virtual environment activation in the CI workflow.
 
-[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.9.0-beta...v1.0.0
 [0.9.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.8.0-beta...v0.9.0-beta
 [0.8.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.7.1-beta...v0.8.0-beta

@@ -470,14 +470,20 @@ class BaseFlashingTool:
 				progress markers.
 		"""
 		if (self.step_method.lower() == "step_array"):
+			self.p_bar.setMaximum(self.num_steps - 1)
 			if (self.progress_on[self.step_on] in data):
 				split = data.split(self.progress_on[self.step_on])
 
 				self.logger.debug(f"Data: {data}")
 				self.logger.debug(f"Split length: {len(split)}")
+				self.logger.debug(f"Pbar value: {self.p_bar.value()}")
 
 				for _ in range(len(split) - 1):
-					self.p_bar.setValue(self.p_bar.value() + (100 // self.num_steps))
+					new_pbar_val = self.p_bar.value() + 1
+					if new_pbar_val > self.p_bar.maximum():
+						self.p_bar.setValue(self.p_bar.maximum())
+					else:
+						self.p_bar.setValue(new_pbar_val)
 				
 				self.step_on += 1
 
