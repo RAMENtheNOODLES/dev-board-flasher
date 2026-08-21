@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   check-pr:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     outputs:
       has_open_pr: ${{ steps.check.outputs.has_open_pr }}
@@ -27,12 +28,12 @@ jobs:
 
   test:
     needs: check-pr
-    if: needs.check-pr.outputs.has_open_pr != 'true'
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
     uses: ./.github/workflows/tests.yml
 
   build:
     needs: [check-pr, test]
-    if: needs.check-pr.outputs.has_open_pr != 'true'
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
     runs-on: windows-latest
     env:
       NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
@@ -45,6 +46,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Strip -devN suffix and promote changelog
+        if: github.ref_name == 'main'
+        shell: bash
+        run: |
+          strip_result=$(python scripts/strip_dev_suffix.py)
+          promote_result=$(python scripts/promote_changelog.py)
+          if [[ "$strip_result" == CHANGED:* || "$promote_result" == CHANGED:* ]]; then
+            if [[ "$strip_result" == CHANGED:* ]]; then
+              version="${strip_result#CHANGED:}"
+            else
+              version="${promote_result#CHANGED:}"
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pyproject.toml CHANGELOG.md
+            git commit -m "chore: release v$version [skip ci]"
+            git push origin HEAD:main
+          fi
 
       - name: Read version from pyproject.toml
         id: version

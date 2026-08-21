@@ -75,7 +75,7 @@ Flashing tool TOML files can start with a `#:schema /config/flashing_tool_schema
 | Key | Description |
 | --- | --- |
 | `method` | How progress is derived from the tool's output: `"none"`, `"step_array"`, or `"regex"`. |
-| `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where each matched step advances the bar by `100 // num_steps`. |
+| `num_steps` | Number of steps the bar is divided into. Used by `"step_array"`, where the bar's maximum is set to `num_steps - 1` and each matched step advances the bar's value by `1`, clamped at that maximum. |
 | `inc_step_on` | `"step_array"` only. A list of markers to watch for in the tool's output, in order. Each time the current marker is found, the bar advances and moves on to the next marker, wrapping back to the first once the list is exhausted. |
 | `regex_method` | `"regex"` only. Which regex strategy to use: `"normal"` (current/total counts) or `"hex"` (hex memory addresses). Defaults to `"normal"`. |
 | `step_read_regex` | `"regex"` with `regex_method = "normal"` only. A regular expression matching the current step count in the tool's output (e.g. the `12` in `"12/50"`). |
@@ -164,8 +164,16 @@ These are stored via `QSettings` (see `src/utils/wiz_utils/stored_settings.py`) 
 
 **Edit > Preferences...** opens a settings dialog with two tabs:
 
-- **General** lets you override the app's font (family and size) via a font picker and size spinner; **Save Settings** stores the choice in `StoredSettings.APP_FONT`/`StoredSettings.APP_FONT_SIZE` and applies it the next time the app starts or is reloaded (**Edit > Reload App**), not immediately, while **Revert to Defaults** clears the override back to the bundled Nerd Font at 11pt. The chosen font applies to every top-level window, including the CAN Viewer and ELF Parser (see `get_global_font` in `src/utils/ui_utils/`).
+- **General** lets you override the app's font (family and size) via a font picker and size spinner; **Save Settings** stores the choice in `StoredSettings.APP_FONT`/`StoredSettings.APP_FONT_SIZE` and applies it the next time the app starts or is reloaded (**Edit > Reload App**), not immediately, while **Revert to Defaults** clears the override back to the bundled Nerd Font at 11pt. The chosen font applies to every top-level window, including the CAN Viewer and ELF Parser (see `get_global_font` in `src/utils/ui_utils/`, and [Styling](#styling) below for how it's actually applied app-wide).
 - **Advanced** holds **Import Settings**/**Export Settings** (read/write the whole settings file as an INI you pick, backing up the current file first on import; see `StoredSettings.import_settings`/`export_settings`) and **Clear All Settings** (moved here from the old Tools menu). A successful import asks whether to reload the app immediately (**Edit > Reload App**'s `reload_app()`, see `src/utils/wiz_utils/`) to pick up the imported settings right away; declining just refreshes the dialog's own font/size preview instead.
+
+## Styling
+
+The app's whole look (colors, borders, hover/pressed/disabled states, etc.) comes from a single stylesheet, `assets/style.qss`, applied once via `QApplication.setStyleSheet()` in `src/main.py`. Its palette is sampled directly from `assets/logo.png` (black, indigo, cyan, yellow, white); every other color in the file is a tint or shade mixed from those five, so the UI and the app icon stay visually consistent.
+
+Like the bundled font, `style.qss` is compiled into the app as a Qt resource rather than read from disk at runtime: it's listed in `assets/images.qrc` alongside `logo.png`, compiled to `src/images_rc.py` by `make rcc` (part of `make all`), and loaded at startup via `get_global_stylesheet()` in `src/utils/ui_utils/` (mirroring `get_global_font()`'s pattern), which reads the embedded `:/style.qss` resource. Editing `assets/style.qss` requires re-running `make rcc`/`make all` (or `make run`, which does this automatically) for the change to show up.
+
+Applying a stylesheet at the `QApplication` level has one non-obvious consequence: once any stylesheet is set app-wide, Qt resolves the font of every styled widget from `QApplication.font()` rather than from the font its parent window was given via `self.setFont(...)`. Because of this, `src/main.py` also calls `app.setFont(...)` with the same font `get_global_font()` returns, once per pass through the app's restart loop (so a font changed in Preferences takes effect on the reload it triggers, same as the font applied to each window itself). Without this, only widgets given their own explicit font in QSS (like the menu bar, which sets `font:` directly in its own stylesheet — see `get_global_font`'s docstring) would pick up the chosen font; everything else would silently fall back to the OS default.
 
 ## Board and Config Cache
 
