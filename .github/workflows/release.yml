@@ -47,6 +47,25 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Strip -devN suffix and promote changelog
+        if: github.ref_name == 'main'
+        shell: bash
+        run: |
+          strip_result=$(python scripts/strip_dev_suffix.py)
+          promote_result=$(python scripts/promote_changelog.py)
+          if [[ "$strip_result" == CHANGED:* || "$promote_result" == CHANGED:* ]]; then
+            if [[ "$strip_result" == CHANGED:* ]]; then
+              version="${strip_result#CHANGED:}"
+            else
+              version="${promote_result#CHANGED:}"
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pyproject.toml CHANGELOG.md
+            git commit -m "chore: release v$version [skip ci]"
+            git push origin HEAD:main
+          fi
+
       - name: Read version from pyproject.toml
         id: version
         shell: pwsh
