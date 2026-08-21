@@ -41,7 +41,7 @@ from remote_configs import RemoteConfigs
 # Import the auto-generated UI classes created by the Makefile
 from ui_main_window import Ui_MainWindow
 from utils.board_utils import BoardConfigurer
-from utils.ui_utils import get_global_font
+from utils.ui_utils import get_global_font, get_global_stylesheet
 from utils.wiz_utils import (
 	EXIT_CODE_RESTART,
 	CacheHelper,
@@ -261,12 +261,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		Returns:
 			bool: The result of the base class's event filter handling.
 		"""
-		# When the window scales, resize the overlay to fill the screen
+		# When the window scales, resize the overlay to fill the screen.
+		# containerWidget no longer needs a manual resize here: it's a
+		# QGridLayout item now, so Qt keeps it in sync with centralwidget
+		# on its own.
 		if event.type() == QEvent.Type.Resize:
 			self.vignette.resize(self.size())
 			self.vignette.move(0, 0)
-			self.containerWidget.resize(self.centralWidget().size())
-			self.actualWidget.resize(self.centralWidget().size())
 		return super().eventFilter(watched, event)
 
 	def dragEnterEvent(self, event: QDragEnterEvent):
@@ -750,6 +751,10 @@ if __name__ == "__main__":
 	logging.config.dictConfig(WizLogger.LOGGING_CONFIG)
 	logger = logging.getLogger(__name__)
 
+	stylesheet = get_global_stylesheet()
+	if stylesheet:
+		app.setStyleSheet(stylesheet)
+
 	if os.name == 'nt':
 		# Named mutex the installer looks for (AppMutex in scripts/installer.iss)
 		# to detect this app is running and close it during a silent
@@ -775,10 +780,20 @@ if __name__ == "__main__":
 			ver = config["project"]["version"]
 
 		logger.info(f"Version {ver}")
-		
+
 		if os.name == 'nt':
 			appid = f"cookiejar.flashwiz.{ver}" # Custom unique string
 			ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+
+		# Once a QApplication-level stylesheet is set, Qt resolves the font
+		# of every styled widget from QApplication.font() rather than the
+		# font inherited from its parent, so per-window self.setFont() calls
+		# alone no longer reach child widgets. Re-read on every loop pass
+		# (not just once before the loop) so a font changed via Preferences
+		# takes effect on the reload it triggers.
+		app_font = get_global_font()
+		if app_font is not None:
+			app.setFont(app_font)
 
 		try:
 			window = MainWindow()
