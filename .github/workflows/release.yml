@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   check-pr:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     outputs:
       has_open_pr: ${{ steps.check.outputs.has_open_pr }}
@@ -27,12 +28,12 @@ jobs:
 
   test:
     needs: check-pr
-    if: needs.check-pr.outputs.has_open_pr != 'true'
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
     uses: ./.github/workflows/tests.yml
 
   build:
     needs: [check-pr, test]
-    if: needs.check-pr.outputs.has_open_pr != 'true'
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
     runs-on: windows-latest
     env:
       NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
