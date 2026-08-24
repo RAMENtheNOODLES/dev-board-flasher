@@ -273,7 +273,7 @@
     </property>
     <addaction name="actionCANLib_Kvaser"/>
     <addaction name="action_Elf_Parser"/>
-    <addaction name="separator"/>
+    <addaction name="action_A2L_Parser"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -349,6 +349,11 @@
   <action name="action_Preferences">
    <property name="text">
     <string>&amp;Preferences...</string>
+   </property>
+  </action>
+  <action name="action_A2L_Parser">
+   <property name="text">
+    <string>&amp;A2L Parser</string>
    </property>
   </action>
  </widget>
