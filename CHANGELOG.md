@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub token dialog: submitting with an empty access token field now
   offers **Ignore** alongside **Ok** on the warning, letting you save an
   empty token instead of only dismissing the warning.
+- CI: the `develop`-onto-`main` rebase (formerly the standalone
+  `sync-develop.yml`, triggered independently on every push to `main`)
+  is now a step in the release workflow itself, sequenced to run right
+  after the version-bump/changelog-promotion commit is pushed and before
+  `build` compiles the release. Previously the two workflows could race,
+  so `develop` sometimes missed the version bump and changelog promotion
+  from a release (as happened with `v1.3.0`).
+- CI: the GitHub release's notes are now the promoted CHANGELOG.md
+  section for that version (via the new `scripts/changelog_notes.py`),
+  instead of GitHub's auto-generated list of merged PRs.
 
 ## [1.3.0] - 2026-08-21
 
