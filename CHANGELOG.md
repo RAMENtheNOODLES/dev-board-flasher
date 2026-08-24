@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - GitHub token dialog (**Edit > Github Personal Access Token...**): a
   **Clear Token** button that, after a confirmation prompt, clears the
   stored token and its associated cache and empties the token field.
+- **A2L Parser** (**Tools > A2L Parser**): parses an A2L (ASAP2) calibration
+  file and displays each module's Measurements, Characteristics, Compu
+  Methods, Functions, Groups, Axis Points, Record Layouts, and Units in a
+  tree.
+  - Several real-world quirks are corrected ahead of parsing so files that
+    fail pya2l's strict grammar still load: a leading UTF-8 BOM; reserved
+    ASAP2 keywords (e.g. `RAM`) used as bare values inside vendor `IF_DATA`
+    blocks, which pya2l's generic grammar rejects; an unquoted `FORMAT`
+    spec; and a `MATRIX_DIM` given fewer than its hardcoded 3 dimensions.
 
 ### Changed
 

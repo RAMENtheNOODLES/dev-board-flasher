@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 	QSplashScreen,
 )
 
+from a2l_viewer import A2LViewer
 from can_viewer import CANViewer
 from elf_viewer import ELFViewer
 from github_token_ui import GithubTokenUI
@@ -494,9 +495,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def open_elf_viewer(self):
 		if self.elfViewer is None:
 			self.elfViewer = ELFViewer(self)
-		
+
 		self.elfViewer.show()
 		self.elfViewer.activateWindow()
+
+	def open_a2l_viewer(self):
+		"""Shows the A2L viewer window, creating it on first use.
+
+		The same :class:`A2LViewer` instance is reused across shows rather
+		than being recreated each time, so a previously parsed file stays
+		on screen when reopening the window.
+		"""
+		if self.a2lViewer is None:
+			self.a2lViewer = A2LViewer(self)
+
+		self.a2lViewer.show()
+		self.a2lViewer.activateWindow()
 
 	def show_about(self):
 		"""Shows the **Help > About** dialog with the app's version and credits."""
@@ -651,6 +665,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.actionCANLib_Kvaser.triggered.connect(self.open_can_viewer)
 
 		self.action_Elf_Parser.triggered.connect(self.open_elf_viewer)
+		self.action_A2L_Parser.triggered.connect(self.open_a2l_viewer)
 
 	def get_cached_settings(self):
 		"""Restores the previously selected board, firmware file, and baud rate from :class:`StoredSettings`."""
@@ -737,6 +752,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		"""Handles the remaining one-off startup steps that don't fit the other load tasks."""
 		self.canViewer = None
 		self.elfViewer = None
+		self.a2lViewer = None
 		self.refresh_serial_ports()
 		self.vignette.raise_()
 		self.installEventFilter(self)

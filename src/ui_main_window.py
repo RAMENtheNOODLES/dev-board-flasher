@@ -58,6 +58,8 @@ class Ui_MainWindow(object):
         self.action_Invalidate_Cache.setObjectName(u"action_Invalidate_Cache")
         self.action_Preferences = QAction(MainWindow)
         self.action_Preferences.setObjectName(u"action_Preferences")
+        self.action_A2L_Parser = QAction(MainWindow)
+        self.action_A2L_Parser.setObjectName(u"action_A2L_Parser")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.vignette = VignetteOverlay(self.centralwidget)
@@ -240,7 +242,7 @@ class Ui_MainWindow(object):
         self.menu_Help.addAction(self.actionCheck_for_Updates)
         self.menu_Tools.addAction(self.actionCANLib_Kvaser)
         self.menu_Tools.addAction(self.action_Elf_Parser)
-        self.menu_Tools.addSeparator()
+        self.menu_Tools.addAction(self.action_A2L_Parser)
 
         self.retranslateUi(MainWindow)
 
@@ -262,6 +264,7 @@ class Ui_MainWindow(object):
         self.actionClear_All_Settings.setText(QCoreApplication.translate("MainWindow", u"Clear All &Settings", None))
         self.action_Invalidate_Cache.setText(QCoreApplication.translate("MainWindow", u"&Invalidate Cache", None))
         self.action_Preferences.setText(QCoreApplication.translate("MainWindow", u"&Preferences...", None))
+        self.action_A2L_Parser.setText(QCoreApplication.translate("MainWindow", u"&A2L Parser", None))
         self.baudRateBox.setItemText(0, QCoreApplication.translate("MainWindow", u"9600", None))
         self.baudRateBox.setItemText(1, QCoreApplication.translate("MainWindow", u"115200", None))
         self.baudRateBox.setItemText(2, QCoreApplication.translate("MainWindow", u"38400", None))

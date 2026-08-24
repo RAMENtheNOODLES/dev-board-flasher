@@ -19,7 +19,8 @@ def get_global_font() -> QFont|None:
 	before ``APP_FONT_SIZE`` was introduced may otherwise carry its own,
 	no-longer-relevant size. Shared by every top-level window
 	(:class:`main.MainWindow`, :class:`can_viewer.CANViewer`,
-	:class:`elf_viewer.ELFViewer`, :class:`remote_configs.RemoteConfigs`,
+	:class:`elf_viewer.ELFViewer`, :class:`a2l_viewer.A2LViewer`,
+	:class:`remote_configs.RemoteConfigs`,
 	:class:`preferences.Preferences`) so they all apply the same font via
 	``self.setFont(...)``; windows with a menu bar additionally set the menu
 	bar's font and a matching stylesheet, since ``QMenuBar``/``QMenu`` don't
