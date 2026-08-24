@@ -1,4 +1,5 @@
 from threading import Event
+from time import monotonic
 
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -22,6 +23,9 @@ class CanWorkerSignals(QObject):
 	disconnected = Signal()
 	# Emitted for each raw frame read off the bus
 	frame_received = Signal(object)
+	# Emitted periodically (see CanWorker._BUS_LOAD_POLL_INTERVAL) with the
+	# current CAN bus load as a percentage (0.0-100.0)
+	bus_load_updated = Signal(float)
 	# Emitted with a message if opening or reading the channel raises
 	error = Signal(str)
 
@@ -39,6 +43,9 @@ class CanWorker(PlainRunnable):
 	closes/reopens it (e.g. on device/channel/bitrate changes) and doing so
 	from both threads at once would race on the same CANlib handle.
 	"""
+
+	# How often, in seconds, `run()` polls `CAN.bus_load()` while connected.
+	_BUS_LOAD_POLL_INTERVAL: float = 1.0
 
 	def __init__(self, task_id: str, stop_event: Event, can_instance: CAN, receive_timeout: int = 100):
 		"""Prepares the worker to drive ``can_instance``'s connect/receive loop.
@@ -63,10 +70,12 @@ class CanWorker(PlainRunnable):
 
 		Emits ``dbc_ready`` with the DBC's messages/signals first (even if
 		none are loaded), then ``connected`` once the channel is open, then
-		``frame_received`` for each frame read off the bus until
-		``stop_event`` is set or the channel closes, then ``disconnected``.
-		Any exception along the way is reported via ``error`` instead of
-		propagating, and the channel is always closed before returning.
+		``frame_received`` for each frame read off the bus (and
+		``bus_load_updated`` roughly every :data:`_BUS_LOAD_POLL_INTERVAL`
+		seconds) until ``stop_event`` is set or the channel closes, then
+		``disconnected``. Any exception along the way is reported via
+		``error`` instead of propagating, and the channel is always closed
+		before returning.
 		"""
 		try:
 			dbc_data = self.can.dbc_message_signals()
@@ -84,11 +93,19 @@ class CanWorker(PlainRunnable):
 
 		self.signals.connected.emit()
 
+		# Starts the clock from here rather than 0.0, so the first poll is a
+		# full _BUS_LOAD_POLL_INTERVAL after connecting rather than immediate.
+		last_bus_load_poll = monotonic()
 		try:
 			while not self.stop_event.is_set() and self.can.is_open:
 				msg = self.can.receive(self.receive_timeout)
 				if msg is not None:
 					self.signals.frame_received.emit(msg)
+
+				now = monotonic()
+				if now - last_bus_load_poll >= self._BUS_LOAD_POLL_INTERVAL:
+					last_bus_load_poll = now
+					self.signals.bus_load_updated.emit(self.can.bus_load())
 		except Exception as e:  # noqa: BLE001 - intentionally broad, see run()'s docstring
 			self.signals.error.emit(str(e))
 		finally:
