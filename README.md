@@ -1,5 +1,8 @@
 # dev-board-flasher
 
+![GitHub License](https://img.shields.io/github/license/RAMENtheNOODLES/dev-board-flasher)
+![GitHub Release](https://img.shields.io/github/v/release/RAMENtheNOODLES/dev-board-flasher)
+
 A PySide6 desktop application for flashing firmware onto development boards over a serial connection. Boards and flashing tools are both declared in TOML configuration files under `config/`, so new boards and flashing tools can be added without changing any code.
 
 ## Installing the Tool
