@@ -6,6 +6,7 @@ on:
 permissions:
   contents: write
   pull-requests: read
+  issues: write
 
 jobs:
   check-pr:
@@ -31,18 +32,17 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
     uses: ./.github/workflows/tests.yml
 
-  build:
+  prepare-release:
     needs: [check-pr, test]
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
-    runs-on: windows-latest
-    env:
-      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        if: github.ref_name == 'main'
         uses: actions/checkout@v4
 
       - name: Set up Python
-        id: setup-python
+        if: github.ref_name == 'main'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -65,6 +65,94 @@ jobs:
             git commit -m "chore: release v$version [skip ci]"
             git push origin HEAD:main
           fi
+
+  # Rebases develop onto main so it picks up the version bump/changelog
+  # commit prepare-release may have just pushed, before build reads
+  # pyproject.toml and compiles the release from main.
+  sync-develop:
+    needs: [check-pr, prepare-release]
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        if: github.ref_name == 'main'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        if: github.ref_name == 'main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch develop
+        if: github.ref_name == 'main'
+        run: git fetch origin develop
+
+      - name: Check if develop needs rebasing
+        if: github.ref_name == 'main'
+        id: check
+        run: |
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebase develop onto main
+        if: github.ref_name == 'main' && steps.check.outputs.needed == 'true'
+        id: rebase
+        run: |
+          git checkout -B develop origin/develop
+          if git rebase origin/main; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            git rebase --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push rebased develop
+        if: github.ref_name == 'main' && steps.check.outputs.needed == 'true' && steps.rebase.outputs.conflict == 'false'
+        run: git push --force-with-lease origin develop
+
+      - name: Open an issue for the conflict
+        if: github.ref_name == 'main' && steps.check.outputs.needed == 'true' && steps.rebase.outputs.conflict == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="develop needs a manual rebase onto main"
+          existing=$(gh issue list --repo "${{ github.repository }}" --state open --json title --jq "[.[] | select(.title == \"$title\")] | length")
+          if [ "$existing" -eq 0 ]; then
+            gh issue create \
+              --repo "${{ github.repository }}" \
+              --title "$title" \
+              --body "Auto-rebasing \`develop\` onto \`main\` (triggered by ${{ github.sha }}) hit a conflict and was aborted, so \`develop\` was left unchanged. Please resolve it manually:
+
+          \`\`\`
+          git checkout develop
+          git rebase main
+          # resolve conflicts, then:
+          git push --force-with-lease
+          \`\`\`"
+          fi
+          exit 1
+
+  build:
+    needs: [check-pr, test, sync-develop]
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
+    runs-on: windows-latest
+    env:
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Read version from pyproject.toml
         id: version
@@ -135,6 +223,11 @@ jobs:
           ISCC "/DAppVersion=${{ steps.version.outputs.version }}" scripts\installer.iss
           Copy-Item "build\upload_wiz_setup.exe" "dev-board-flasher-${{ steps.version.outputs.version }}-setup.exe"
 
+      - name: Extract changelog notes for this version
+        if: github.ref_name == 'main'
+        shell: bash
+        run: python scripts/changelog_notes.py "${{ steps.version.outputs.version }}" release_notes.md
+
       - name: Create GitHub release
         if: github.ref_name == 'main'
         shell: pwsh
@@ -145,7 +238,7 @@ jobs:
             "dev-board-flasher-${{ steps.version.outputs.version }}-windows.zip" `
             "dev-board-flasher-${{ steps.version.outputs.version }}-setup.exe" `
             --title "${{ steps.version.outputs.tag }}" `
-            --generate-notes
+            --notes-file release_notes.md
 
       - name: Upload build artifact
         if: github.ref_name != 'main'
