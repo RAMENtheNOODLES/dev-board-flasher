@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- GitHub token dialog (**Edit > Github Personal Access Token...**): a
+  **Clear Token** button that, after a confirmation prompt, clears the
+  stored token and its associated cache and empties the token field.
+
+### Changed
+
+- GitHub token dialog: submitting with an empty access token field now
+  offers **Ignore** alongside **Ok** on the warning, letting you save an
+  empty token instead of only dismissing the warning.
+
+## [1.3.0] - 2026-08-21
+
+### Added
+
+- Application stylesheet (`assets/style.qss`), applied app-wide via
+  `QApplication.setStyleSheet()`, giving every window a consistent look
+  (colors, borders, hover/pressed/disabled states) sampled from the app
+  icon's palette. See the new **Styling** section in the README.
+- Automated version-bump and changelog-promotion GitHub Actions
+  workflows: `develop` commits bump `pyproject.toml`'s `-devN` prerelease
+  suffix automatically, and merges to `main` strip the suffix and promote
+  the `[Unreleased]` changelog section to a dated release section.
+
+### Changed
+
+- Main window layout switched to `QGridLayout` so its widgets resize
+  themselves to fill the window, instead of being manually resized on
+  every resize event, improving responsiveness when scaling the window.
+
 ## [1.0.1] - 2026-08-20
 
 ### Fixed
@@ -182,7 +213,8 @@ Initial release.
 - Build output validation before packaging; Nuitka `extra_args` update.
 - Streamlined virtual environment activation in the CI workflow.
 
-[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.3.0
 [1.0.1]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.9.0-beta...v1.0.0
 [0.9.0-beta]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.8.0-beta...v0.9.0-beta
