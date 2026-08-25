@@ -203,7 +203,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.NUITKA_CACHE_DIR }}
-          key: nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}
+          # Keyed on run_id (always unique) so every run saves a fresh cache
+          # entry instead of being pinned to a pyproject.toml hash - the
+          # version bump in pyproject.toml right before this job runs
+          # (see prepare-release) would otherwise bust the exact key on
+          # nearly every release and permanently orphan the previous cache,
+          # since actions/cache never overwrites an existing key. Nuitka's
+          # own cache is content-hashed per module, so restoring a cache
+          # from an unrelated previous run is safe - it just recompiles
+          # whatever actually changed.
+          key: nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-${{ github.run_id }}
           restore-keys: |
             nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-
             nuitka-${{ runner.os }}-
