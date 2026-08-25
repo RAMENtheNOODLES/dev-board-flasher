@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator, Iterator
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import canlib
+from canlib import j1939
+
+from .j1939_dm1 import Dm1Message, Dm1TransportDecoder
 
 if TYPE_CHECKING:
 	# typing.Self needs Python 3.11+, but this is TYPE_CHECKING-only (never
@@ -19,6 +23,36 @@ if TYPE_CHECKING:
 	from canlib.kvadblib.message import Message
 
 DecodedFrame = dict[str, object]
+
+
+@dataclass(frozen=True)
+class TxSignalInfo:
+	"""A DBC signal's static metadata, as needed to build a TX message config editor."""
+
+	name: str
+	unit: str
+	default_value: float
+	#: ``{label: raw value}`` from the DBC's value table, or ``{}`` if this signal isn't an enum - see `CAN.dbc_tx_messages`.
+	enum_values: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TxMessageInfo:
+	"""A DBC message's static metadata, as needed to populate a TX message's PGN picker."""
+
+	name: str
+	pgn: int
+	signals: tuple[TxSignalInfo, ...]
+
+
+@dataclass(frozen=True)
+class TxMessageConfig:
+	"""One user-configured periodic TX message: which DBC message, how often, what signal values, and whether it's active."""
+
+	message_name: str
+	rate_ms: int
+	enabled: bool
+	signal_values: dict[str, float]
 
 
 def _canlib_can():
@@ -77,6 +111,7 @@ class CAN:
 		# Set once receive() has warned about bus error frames, so it only
 		# logs the first one per connection instead of once per error.
 		self._warned_about_errors = False
+		self._dm1_decoder = Dm1TransportDecoder()
 
 		if dbc_path is not None:
 			self.load_dbc(dbc_path)
@@ -192,6 +227,54 @@ class CAN:
 			for msg in self._dbc.messages()
 		}
 
+	def dbc_tx_messages(self) -> list[TxMessageInfo]:
+		"""Return every message in the loaded DBC file as a TX candidate: its name, J1939 PGN, and each signal's name/unit/default value.
+
+		A signal's `default_value` comes from binding a freshly zero-filled
+		frame (`Message.asframe()`), so it reflects the DBC's scale/offset
+		even when the signal has no explicitly-defined default - e.g. a
+		signal with a -40 offset defaults to -40, not 0. A signal defined in
+		the DBC as an enum (value table) also gets its `enum_values` filled
+		in, `{}` for every other signal.
+
+		A message kvadblib can't build a default frame for at all (e.g. one
+		with a DLC that doesn't fit the DBC's protocol - malformed DBC data
+		unrelated to anything this app writes) is skipped with a warning
+		rather than raising, since it couldn't be sent via `send_message`
+		either and shouldn't take the whole TX picker down with it.
+
+		Empty if no DBC is loaded. Walking every message/signal via kvadblib
+		is comparatively slow for a DBC of any real size, so callers driving
+		a GUI should run this off the main thread, same as `dbc_message_signals`.
+		"""
+		if self._dbc is None:
+			return []
+
+		# See dbc_message_signals for why the extended-id marker bit has to
+		# be stripped before this can be decomposed into a J1939 PGN.
+		ext_flag = _kvadblib().MessageFlag.EXT
+		messages = []
+		for msg in self._dbc.messages():
+			try:
+				bound_message = msg.bind(msg.asframe())
+				signals = tuple(
+					TxSignalInfo(
+						name=signal.name,
+						unit=signal.unit,
+						default_value=signal.phys,
+						enum_values=dict(signal.signal.enums) if signal.is_enum else {},
+					)
+					for signal in bound_message
+				)
+			except _kvadblib().KvdError:
+				self.logger.warning("Skipping TX-unusable DBC message %r", msg.name, exc_info=True)
+				continue
+
+			pgn = j1939.pdu_from_can_id(msg.id & ~ext_flag).pgn
+			messages.append(TxMessageInfo(name=msg.name, pgn=pgn, signals=signals))
+
+		return messages
+
 	def load_dbc(self, dbc_path: str | Path | None) -> None:
 		"""Load a DBC file, used to decode/encode messages by name.
 
@@ -256,6 +339,9 @@ class CAN:
 		channel.busOn()
 		self._channel = channel
 		self._warned_about_errors = False
+		# A fresh connection shouldn't try to resume a BAM reassembly left
+		# mid-transfer by whatever was previously on the bus.
+		self._dm1_decoder = Dm1TransportDecoder()
 
 	def close(self) -> None:
 		"""Go bus off and close the channel, if open."""
@@ -284,8 +370,8 @@ class CAN:
 		frame = canlib.Frame(id_=frame_id, data=data, flags=flags)
 		self._channel.write(frame)
 
-	def send_message(self, name: str, **signal_values: float) -> None:
-		"""Encode and send a message by name using the loaded DBC file."""
+	def send_message(self, name: str, **signal_values: float) -> canlib.Frame:
+		"""Encode and send a message by name using the loaded DBC file, returning the frame that was sent."""
 		if self._channel is None:
 			raise RuntimeError("CAN channel is not open")
 		if self._dbc is None:
@@ -298,6 +384,7 @@ class CAN:
 			getattr(bound_message, signal_name).phys = value
 
 		self._channel.write(frame)
+		return frame
 
 	def bus_load(self) -> float:
 		"""Return the current CAN bus load as a percentage (0.0-100.0).
@@ -350,6 +437,11 @@ class CAN:
 	def decode(self, frame: canlib.Frame) -> DecodedFrame | None:
 		"""Decode `frame`'s signals using the loaded DBC file.
 
+		A signal defined in the DBC as an enum (value table) decodes to its
+		matching label (e.g. ``"On"``) instead of the raw physical number,
+		via kvadblib's `BoundSignal.value`; every other signal still decodes
+		to its physical value, same as `BoundSignal.phys`.
+
 		Returns `None` if no DBC is loaded or the frame's message isn't in it.
 		"""
 		if self._dbc is None:
@@ -360,7 +452,22 @@ class CAN:
 		except _kvadblib().KvdNoMessage:
 			return None
 
-		return {signal.name: signal.phys for signal in bound_message}
+		return {signal.name: signal.value for signal in bound_message}
+
+	def feed_dm1(self, frame: canlib.Frame) -> Dm1Message | None:
+		"""Feeds `frame` to the J1939 DM1 (Active DTCs) transport-protocol reassembler.
+
+		J1939 always uses 29-bit extended CAN ids, so standard-id frames are
+		ignored. Most other extended-id frames just update (or leave alone)
+		the reassembler's per-source-address state and also return `None`
+		here - a message is only returned once a source address's DM1
+		payload is actually complete.
+		"""
+		canlib_can = _canlib_can()
+		if not (frame.flags & canlib_can.MessageFlag.EXT):
+			return None
+
+		return self._dm1_decoder.feed(frame.id, bytes(frame.data))
 
 	def __iter__(self) -> Iterator[canlib.Frame]:
 		"""Yield frames as they arrive until the channel is closed."""

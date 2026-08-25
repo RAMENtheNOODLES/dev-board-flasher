@@ -35,6 +35,8 @@ class Ui_CANViewer(object):
         self.action_Start_Logging.setObjectName(u"action_Start_Logging")
         self.actionSto_p_Logging = QAction(CANViewer)
         self.actionSto_p_Logging.setObjectName(u"actionSto_p_Logging")
+        self.action_Configure_J1939 = QAction(CANViewer)
+        self.action_Configure_J1939.setObjectName(u"action_Configure_J1939")
         self.centralwidget = QWidget(CANViewer)
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout = QGridLayout(self.centralwidget)
@@ -132,6 +134,11 @@ class Ui_CANViewer(object):
 
         self.gridLayout.addWidget(self.connectButton, 16, 1, 1, 1)
 
+        self.txSettingsButton = QPushButton(self.centralwidget)
+        self.txSettingsButton.setObjectName(u"txSettingsButton")
+
+        self.gridLayout.addWidget(self.txSettingsButton, 13, 4, 1, 1)
+
         CANViewer.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(CANViewer)
         self.menubar.setObjectName(u"menubar")
@@ -145,9 +152,11 @@ class Ui_CANViewer(object):
 
         self.menubar.addAction(self.menu_File.menuAction())
         self.menu_File.addAction(self.action_Load_DBC)
+        self.menu_File.addAction(self.action_Configure_J1939)
         self.menu_File.addSeparator()
         self.menu_File.addAction(self.action_Start_Logging)
         self.menu_File.addAction(self.actionSto_p_Logging)
+        self.menu_File.addSeparator()
 
         self.retranslateUi(CANViewer)
 
@@ -171,6 +180,7 @@ class Ui_CANViewer(object):
 #if QT_CONFIG(statustip)
         self.actionSto_p_Logging.setStatusTip(QCoreApplication.translate("CANViewer", u"Stop logging the CANBUS.", None))
 #endif // QT_CONFIG(statustip)
+        self.action_Configure_J1939.setText(QCoreApplication.translate("CANViewer", u"&Configure J1939", None))
 #if QT_CONFIG(statustip)
         self.openDBCFileBtn.setStatusTip(QCoreApplication.translate("CANViewer", u"Open a DBC file from disk to use when receiving CAN messages.", None))
 #endif // QT_CONFIG(statustip)
@@ -194,6 +204,10 @@ class Ui_CANViewer(object):
         self.connectButton.setStatusTip(QCoreApplication.translate("CANViewer", u"Connect/Disconnect from the CANBUS.", None))
 #endif // QT_CONFIG(statustip)
         self.connectButton.setText(QCoreApplication.translate("CANViewer", u"Connect", None))
+#if QT_CONFIG(statustip)
+        self.txSettingsButton.setStatusTip(QCoreApplication.translate("CANViewer", u"Open up the CAN transmit settings dialog.", None))
+#endif // QT_CONFIG(statustip)
+        self.txSettingsButton.setText(QCoreApplication.translate("CANViewer", u"Transmit Settings", None))
         self.menu_File.setTitle(QCoreApplication.translate("CANViewer", u"&File", None))
     # retranslateUi
 
