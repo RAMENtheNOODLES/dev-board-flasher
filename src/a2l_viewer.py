@@ -1,6 +1,48 @@
+import importlib
 import logging
 import os
 import re
+import sys
+from importlib.abc import Loader, MetaPathFinder
+from importlib.machinery import ModuleSpec
+
+
+class _PyA2LProtobufAliasFinder(MetaPathFinder):
+	"""Makes pya2l's generated `import protobuf...` statements resolve.
+
+	pya2l's generated protobuf bindings (pya2l/protobuf/API_pb2.py) do
+	`from protobuf import A2L_pb2`, an absolute import of a top-level
+	`protobuf` package that isn't actually installed under that name -
+	pya2l/__init__.py works around this by appending its own directory to
+	sys.path at runtime, so the standard filesystem-based finder discovers
+	pya2l/protobuf as top-level `protobuf`. Nuitka's onefile build doesn't
+	resolve compiled modules by scanning sys.path directories, so that
+	trick silently fails there and the app crashes on startup
+	(ModuleNotFoundError: No module named 'protobuf'). This finder
+	redirects `protobuf`/`protobuf.*` imports straight to the real
+	`pya2l.protobuf`/`pya2l.protobuf.*` modules, independent of how pya2l
+	itself is packaged.
+	"""
+
+	def find_spec(self, name, path, target=None):
+		if name != "protobuf" and not name.startswith("protobuf."):
+			return None
+		try:
+			real_module = importlib.import_module("pya2l." + name)
+		except ImportError:
+			return None
+
+		class _AliasLoader(Loader):
+			def create_module(self, spec):
+				return real_module
+
+			def exec_module(self, module):
+				pass
+
+		return ModuleSpec(name, _AliasLoader())
+
+
+sys.meta_path.insert(0, _PyA2LProtobufAliasFinder())
 
 from google.protobuf.message import Message
 from pya2l.parser import A2lError, A2lParser
