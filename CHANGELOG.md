@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **release.yml**: Fixed an issue where it used the workflow's trigger commit
+  rather than the branch tip.
 - **CAN Viewer**: a signal decoded from a DBC value table (enum) now shows
   its defined label (e.g. "On") instead of the raw physical number, in
   both the message tree and CSV logging.
