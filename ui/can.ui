@@ -179,6 +179,16 @@
       </property>
      </widget>
     </item>
+    <item row="13" column="4">
+     <widget class="QPushButton" name="txSettingsButton">
+      <property name="statusTip">
+       <string>Open up the CAN transmit settings dialog.</string>
+      </property>
+      <property name="text">
+       <string>Transmit Settings</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -195,9 +205,11 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Load_DBC"/>
+    <addaction name="action_Configure_J1939"/>
     <addaction name="separator"/>
     <addaction name="action_Start_Logging"/>
     <addaction name="actionSto_p_Logging"/>
+    <addaction name="separator"/>
    </widget>
    <addaction name="menu_File"/>
   </widget>
@@ -224,6 +236,11 @@
    </property>
    <property name="statusTip">
     <string>Stop logging the CANBUS.</string>
+   </property>
+  </action>
+  <action name="action_Configure_J1939">
+   <property name="text">
+    <string>&amp;Configure J1939</string>
    </property>
   </action>
  </widget>

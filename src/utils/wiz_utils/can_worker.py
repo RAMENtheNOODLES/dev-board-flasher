@@ -1,3 +1,4 @@
+import queue
 from threading import Event
 from time import monotonic
 
@@ -23,6 +24,8 @@ class CanWorkerSignals(QObject):
 	disconnected = Signal()
 	# Emitted for each raw frame read off the bus
 	frame_received = Signal(object)
+	# Emitted for each frame this app successfully transmits (see enqueue_send/_flush_send_queue)
+	frame_sent = Signal(object)
 	# Emitted periodically (see CanWorker._BUS_LOAD_POLL_INTERVAL) with the
 	# current CAN bus load as a percentage (0.0-100.0)
 	bus_load_updated = Signal(float)
@@ -63,6 +66,30 @@ class CanWorker(PlainRunnable):
 		self.signals = CanWorkerSignals()
 		self.can = can_instance
 		self.receive_timeout = receive_timeout
+		# Thread-safe: enqueue_send() is called from the GUI thread (see
+		# TxScheduler), but the actual CAN.send_message() call is only ever
+		# made from run()'s own loop below, since the channel must not be
+		# touched from more than one thread at once.
+		self._send_queue: queue.Queue[tuple[str, dict[str, float]]] = queue.Queue()
+
+	def enqueue_send(self, message_name: str, signal_values: dict[str, float]) -> None:
+		"""Queues a DBC message to be sent by `run`'s loop, on this worker's own thread."""
+		self._send_queue.put((message_name, signal_values))
+
+	def _flush_send_queue(self) -> None:
+		"""Sends every currently-queued message. Only ever called from `run`'s own thread."""
+		while True:
+			try:
+				message_name, signal_values = self._send_queue.get_nowait()
+			except queue.Empty:
+				return
+
+			try:
+				frame = self.can.send_message(message_name, **signal_values)
+			except Exception as e:  # noqa: BLE001 - a bad TX config shouldn't kill the receive loop
+				self.signals.error.emit(str(e))
+			else:
+				self.signals.frame_sent.emit(frame)
 
 	@Slot()
 	def run(self):
@@ -70,7 +97,11 @@ class CanWorker(PlainRunnable):
 
 		Emits ``dbc_ready`` with the DBC's messages/signals first (even if
 		none are loaded), then ``connected`` once the channel is open, then
-		``frame_received`` for each frame read off the bus (and
+		``frame_received`` for each frame read off the bus. Each loop
+		iteration also flushes any messages queued via :meth:`enqueue_send`
+		first, emitting ``frame_sent`` for each one actually transmitted, so
+		periodic TX sends (see ``TxScheduler``) go out from this same thread
+		rather than racing the channel from the GUI thread. Also emits
 		``bus_load_updated`` roughly every :data:`_BUS_LOAD_POLL_INTERVAL`
 		seconds) until ``stop_event`` is set or the channel closes, then
 		``disconnected``. Any exception along the way is reported via
@@ -98,6 +129,8 @@ class CanWorker(PlainRunnable):
 		last_bus_load_poll = monotonic()
 		try:
 			while not self.stop_event.is_set() and self.can.is_open:
+				self._flush_send_queue()
+
 				msg = self.can.receive(self.receive_timeout)
 				if msg is not None:
 					self.signals.frame_received.emit(msg)

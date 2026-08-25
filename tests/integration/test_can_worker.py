@@ -18,9 +18,14 @@ class _FakeCan:
 		self.opened = False
 		self.closed = False
 		self._bus_load = bus_load
+		self.sent = []
 
 	def dbc_message_signals(self):
 		return self.dbc_data
+
+	def send_message(self, name, **signal_values):
+		self.sent.append((name, signal_values))
+		return f"frame-for-{name}"
 
 	def open(self):
 		self.opened = True
@@ -44,6 +49,7 @@ def _collect_events(worker):
 	worker.signals.dbc_ready.connect(lambda data: events.append(("dbc_ready", data)))
 	worker.signals.connected.connect(lambda: events.append(("connected",)))
 	worker.signals.frame_received.connect(lambda msg: events.append(("frame_received", msg)))
+	worker.signals.frame_sent.connect(lambda frame: events.append(("frame_sent", frame)))
 	worker.signals.bus_load_updated.connect(lambda percent: events.append(("bus_load_updated", percent)))
 	worker.signals.disconnected.connect(lambda: events.append(("disconnected",)))
 	worker.signals.error.connect(lambda msg: events.append(("error", msg)))
@@ -166,3 +172,64 @@ def test_run_does_not_poll_bus_load_before_the_interval_has_elapsed(qapp, monkey
 	worker.run()
 
 	assert ("bus_load_updated", 42.5) not in events
+
+
+def test_enqueue_send_is_a_noop_until_run_flushes_it(qapp):
+	fake_can = _FakeCan()
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+
+	assert fake_can.sent == []
+
+
+def test_run_flushes_a_queued_send_from_the_worker_thread(qapp):
+	fake_can = _FakeCan(frames=["f1"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+
+	worker.run()
+
+	assert fake_can.sent == [("Msg1", {"Sig": 1.0})]
+
+
+def test_run_emits_frame_sent_for_a_successfully_sent_queued_message(qapp):
+	fake_can = _FakeCan(frames=["f1"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert ("frame_sent", "frame-for-Msg1") in events
+
+
+def test_run_does_not_emit_frame_sent_when_a_queued_send_raises(qapp):
+	class _RaisingSendCan(_FakeCan):
+		def send_message(self, name, **signal_values):
+			raise RuntimeError("bad signal value")
+
+	fake_can = _RaisingSendCan(frames=["f1"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert not any(event[0] == "frame_sent" for event in events)
+
+
+def test_run_emits_an_error_and_keeps_running_when_a_queued_send_raises(qapp):
+	class _RaisingSendCan(_FakeCan):
+		def send_message(self, name, **signal_values):
+			raise RuntimeError("bad signal value")
+
+	fake_can = _RaisingSendCan(frames=["f1"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert ("error", "bad signal value") in events
+	assert ("frame_received", "f1") in events

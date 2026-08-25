@@ -93,6 +93,9 @@ class StoredSettings(Enum):
 	# CAN Settings
 	CAN_DBC_FILE = "can_settings/dbc_file"
 	CAN_BAUD_RATE = "can_settings/can_baud_rate"
+	CAN_DM1_SPN_FILE = "can_settings/dm1_spn_file"
+	CAN_DM1_FMI_FILE = "can_settings/dm1_fmi_file"
+	CAN_TX_MESSAGES = "can_settings/tx_messages"
 
 	# ELF Parser Settings
 	ELF_FILE = "elf_settings/elf_file"
