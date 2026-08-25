@@ -11,11 +11,15 @@ from PySide6.QtCore import QThreadPool, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QProgressBar
 
+from can_tx_settings import TxSettingsDialog
+from j1939_config_dialog import J1939ConfigDialog
 from tools.can import CAN
+from tools.j1939_dm1 import load_fmi_names, load_spn_names
 from ui_can import Ui_CANViewer
 from utils.ui_utils import get_global_font
 from utils.wiz_utils.can_worker import CanWorker
 from utils.wiz_utils.stored_settings import StoredSettings
+from utils.wiz_utils.tx_scheduler import TxScheduler
 
 
 def _bitrate_enum():
@@ -116,6 +120,8 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.log_writer = None
 		self.actionSto_p_Logging.setEnabled(False)
 
+		self.tx_scheduler = TxScheduler(self)
+
 		# Permanent (not cleared by statusBar().showMessage()) bus-load
 		# meter, updated via CanWorker.signals.bus_load_updated while
 		# connected; see _on_bus_load_updated/_on_can_disconnected. Fixed
@@ -133,6 +139,8 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.device_check_timer.timeout.connect(self.populate_devices)
 		self.action_Load_DBC.triggered.connect(self.load_dbc)
 		self.openDBCFileBtn.clicked.connect(self.load_dbc)
+		self.action_Configure_J1939.triggered.connect(self.open_j1939_config)
+		self.txSettingsButton.clicked.connect(self.open_tx_settings)
 		self.action_Start_Logging.triggered.connect(self.start_logging)
 		self.actionSto_p_Logging.triggered.connect(self.stop_logging)
 		self.useDBCCheckBox.toggled.connect(self._sync_dbc)
@@ -148,8 +156,46 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		if self.dbc_file is not None:
 			self.dBCFileLineEdit.setText(self.dbc_file)
 
+		self._load_persisted_j1939_names()
+
 		self.selected_device(0)
 		self.selected_channel(0)
+
+	def _load_persisted_j1939_names(self) -> None:
+		"""Applies the SPN/FMI name CSVs picked in a previous session's J1939 config dialog, if any.
+
+		Best-effort: a path that no longer loads (deleted/edited since it
+		was chosen) just logs a warning and leaves that lookup empty rather
+		than blocking the window from opening.
+		"""
+		spn_file = StoredSettings.CAN_DM1_SPN_FILE.get(None)
+		if spn_file:
+			try:
+				self.canLogs.set_spn_names(load_spn_names(spn_file))
+			except (OSError, ValueError) as e:
+				self.logger.warning("Could not reload J1939 SPN name file %s: %s", spn_file, e)
+
+		fmi_file = StoredSettings.CAN_DM1_FMI_FILE.get(None)
+		if fmi_file:
+			try:
+				self.canLogs.set_fmi_names(load_fmi_names(fmi_file))
+			except (OSError, ValueError) as e:
+				self.logger.warning("Could not reload J1939 FMI name file %s: %s", fmi_file, e)
+
+	def open_j1939_config(self) -> None:
+		"""Opens the J1939 DM1 SPN/FMI name-lookup CSV dialog, applying its choices to the tree if accepted."""
+		dialog = J1939ConfigDialog(self)
+		if dialog.exec():
+			self.canLogs.set_spn_names(dialog.spn_names)
+			self.canLogs.set_fmi_names(dialog.fmi_names)
+
+	def open_tx_settings(self) -> None:
+		"""Opens the periodic TX message settings dialog. A no-op until a device is selected, same as `load_dbc`'s dependents."""
+		if self.can is None:
+			return
+
+		dialog = TxSettingsDialog(self.can, self.tx_scheduler, self)
+		dialog.exec()
 
 	def populate_devices(self):
 		"""Repopulates the device dropdown with currently connected CAN devices.
@@ -301,6 +347,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		worker.signals.connected.connect(self._on_can_connected)
 		worker.signals.disconnected.connect(self._on_can_disconnected)
 		worker.signals.frame_received.connect(self._on_frame_received)
+		worker.signals.frame_sent.connect(self._on_frame_sent)
 		worker.signals.bus_load_updated.connect(self._on_bus_load_updated)
 		worker.signals.error.connect(self._on_can_error)
 
@@ -327,14 +374,17 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.useDBCCheckBox.setEnabled(enabled)
 
 	def _on_can_connected(self):
-		"""Updates the connect button once the worker's channel is open. Connected to ``CanWorker.signals.connected``."""
+		"""Updates the connect button and starts periodic TX sends once the worker's channel is open. Connected to ``CanWorker.signals.connected``."""
 		self.connectButton.setEnabled(True)
 		self.connectButton.setText("Disconnect")
+		assert self.worker is not None
+		self.tx_scheduler.start(self.worker)
 
 	def _on_can_disconnected(self):
-		"""Clears the worker/stop event and restores controls once the channel is closed. Connected to ``CanWorker.signals.disconnected``."""
+		"""Clears the worker/stop event, stops periodic TX sends, and restores controls once the channel is closed. Connected to ``CanWorker.signals.disconnected``."""
 		self.worker = None
 		self.stop_event = None
+		self.tx_scheduler.stop()
 		self.connectButton.setEnabled(True)
 		self.connectButton.setText("Connect")
 		self._set_controls_enabled(True)
@@ -388,9 +438,18 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			frame (Frame): The raw frame received off the bus.
 		"""
 		decoded = self.can.decode(frame) if self.can is not None else None
+		dm1 = self.can.feed_dm1(frame) if self.can is not None else None
 		self.canLogs.update_tree(frame, self.channel, decoded)
+		if dm1 is not None:
+			self.canLogs.update_dm1(dm1, self.channel, frame.timestamp)
 
 		if self.log_writer is not None:
+			signals = "; ".join(f"{name}={value}" for name, value in decoded.items()) if decoded is not None else ""
+			if dm1 is not None:
+				dtcs = ", ".join(f"SPN{dtc.spn}/FMI{dtc.fmi}" for dtc in dm1.dtcs) if dm1.dtcs else "none"
+				dm1_summary = f"DM1[SA=0x{dm1.source_address:02X}] active_dtcs={dtcs}"
+				signals = f"{signals}; {dm1_summary}" if signals else dm1_summary
+
 			self.log_writer.writerow([
 				# .astimezone() attaches the local tzinfo without changing the
 				# displayed time - CSV timestamps are meant to read as local
@@ -400,8 +459,22 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 				f"0x{frame.id:X}",
 				frame.dlc,
 				frame.data.hex(" "),
-				"; ".join(f"{name}={value}" for name, value in decoded.items()) if decoded is not None else "",
+				signals,
 			])
+
+	def _on_frame_sent(self, frame: Frame) -> None:
+		"""Updates the message tree for a frame this app just transmitted. Connected to ``CanWorker.signals.frame_sent``.
+
+		Frames sent this way (see `TxScheduler`) never come back through
+		`_on_frame_received`, so this is the only place they'd otherwise show
+		up in the tree at all - it shares the same row per message id, marked
+		``direction="TX"`` so it reads distinctly from received traffic.
+
+		Args:
+			frame (Frame): The raw frame this app just wrote to the bus.
+		"""
+		decoded = self.can.decode(frame) if self.can is not None else None
+		self.canLogs.update_tree(frame, self.channel, decoded, direction="TX")
 
 	def start_logging(self) -> None:
 		"""Opens a file picker and starts writing received frames to a CSV file.

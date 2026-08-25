@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.8.0] - 2026-08-25
-
 ### Added
 
 - GitHub token dialog (**Edit > Github Personal Access Token...**): a
@@ -30,9 +28,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   color-coded progress bar (green under 50%, yellow up to 80%, red above
   that) showing the current CAN bus load, refreshed roughly once a second
   while connected.
+- **CAN Viewer**: parses J1939 DM1 (Active Diagnostic Trouble Codes)
+  messages, including reassembly of multi-packet broadcasts via the SAE
+  J1939-21 BAM transport protocol. Decoded lamp status and DTCs (SPN, FMI,
+  occurrence count, SPN conversion method) get their own row per source
+  address in the message tree.
+  - **File > Configure J1939**: load SPN- and FMI-to-name lookup CSVs so
+    DTC rows show human-readable names (e.g. "Engine Oil Pressure")
+    alongside their raw codes.
+- **CAN Viewer**: **Transmit Settings** window for periodically sending
+  DBC messages onto the bus - pick a message (labeled by its J1939 PGN), a
+  send rate, a value for each signal (a dropdown of the DBC's defined
+  labels for a signal with a value table), and whether it's active. Takes
+  effect immediately while connected, auto-resizes to fit its table, and
+  is remembered across app restarts.
+- **CAN Viewer**: the message tree now also shows messages this app
+  transmits (e.g. via Transmit Settings), alongside received traffic, with
+  a DIR column indicating RX vs TX.
 
 ### Changed
 
+- **release.yml**: Fixed an issue where it used the workflow's trigger commit
+  rather than the branch tip.
+- **CAN Viewer**: a signal decoded from a DBC value table (enum) now shows
+  its defined label (e.g. "On") instead of the raw physical number, in
+  both the message tree and CSV logging.
 - GitHub token dialog: submitting with an empty access token field now
   offers **Ignore** alongside **Ok** on the warning, letting you save an
   empty token instead of only dismissing the warning.
@@ -248,8 +268,7 @@ Initial release.
 - Build output validation before packaging; Nuitka `extra_args` update.
 - Streamlined virtual environment activation in the CI workflow.
 
-[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.8.0...HEAD
-[1.8.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.3.0...v1.8.0
+[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.3.0...HEAD
 [1.3.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.3.0
 [1.0.1]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v0.9.0-beta...v1.0.0
