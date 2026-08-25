@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     ASAP2 keywords (e.g. `RAM`) used as bare values inside vendor `IF_DATA`
     blocks, which pya2l's generic grammar rejects; an unquoted `FORMAT`
     spec; and a `MATRIX_DIM` given fewer than its hardcoded 3 dimensions.
+- **Main Menu Status Bar**: a status bar that shows certain messages when
+  performing specific tasks.
+- **CAN Viewer**: a permanent bus-load meter in the status bar - a
+  color-coded progress bar (green under 50%, yellow up to 80%, red above
+  that) showing the current CAN bus load, refreshed roughly once a second
+  while connected.
 
 ### Changed
 
@@ -38,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI: the GitHub release's notes are now the promoted CHANGELOG.md
   section for that version (via the new `scripts/changelog_notes.py`),
   instead of GitHub's auto-generated list of merged PRs.
+- Status Bars: Windows with status bars now utilize them to show status tips
+  (tooltips that are in the status bar) to guide the user.
+  - Status bars also show important messages.
+- Main window: connecting the serial monitor now also disables the board
+  select, COM port refresh, open/upload file, and baud rate controls for
+  the duration of the connection (previously only **Upload to Board** was
+  disabled), and enables the **Send** button only while connected, since
+  sending data requires an active connection.
 
 ## [1.3.0] - 2026-08-21
 

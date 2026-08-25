@@ -71,6 +71,9 @@
     </item>
     <item row="0" column="2">
      <widget class="QPushButton" name="openFileBtn">
+      <property name="statusTip">
+       <string>Open an elf file from disk to parse.</string>
+      </property>
       <property name="text">
        <string>Open File</string>
       </property>
@@ -102,6 +105,9 @@
     </item>
     <item row="2" column="2">
      <widget class="QPushButton" name="parseElfBtn">
+      <property name="statusTip">
+       <string>Parse the currently loaded elf file.</string>
+      </property>
       <property name="text">
        <string>Parse Elf File</string>
       </property>
@@ -130,6 +136,9 @@
   <action name="action_Open">
    <property name="text">
     <string>&amp;Open...</string>
+   </property>
+   <property name="statusTip">
+    <string>Open an elf file from disk to parse.</string>
    </property>
   </action>
  </widget>

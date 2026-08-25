@@ -1,6 +1,8 @@
 import logging
 from types import SimpleNamespace
 
+import pytest
+
 import tools.can as can_module
 
 
@@ -127,3 +129,25 @@ def test_receive_filters_out_bus_error_frames(monkeypatch):
 
 	# A genuine frame right after still passes through unchanged.
 	assert can.receive() is real_frame
+
+
+def test_bus_load_converts_the_raw_0_10000_statistics_value_to_a_percentage():
+	class _FakeStatistics:
+		busLoad = 4250  # 42.50%
+
+	class _FakeChannel:
+		def get_bus_statistics(self):
+			return _FakeStatistics()
+
+	can = _make_can()
+	can._channel = _FakeChannel()
+
+	assert can.bus_load() == 42.5
+
+
+def test_bus_load_raises_when_the_channel_is_not_open():
+	can = _make_can()
+	can._channel = None
+
+	with pytest.raises(RuntimeError):
+		can.bus_load()

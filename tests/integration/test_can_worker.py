@@ -2,6 +2,7 @@ import threading
 
 import pytest
 
+import utils.wiz_utils.can_worker as can_worker_module
 from utils.wiz_utils.can_worker import CanWorker
 
 pytestmark = pytest.mark.integration
@@ -10,12 +11,13 @@ pytestmark = pytest.mark.integration
 class _FakeCan:
 	"""Duck-typed stand-in for tools.can.CAN, needing no real Kvaser hardware."""
 
-	def __init__(self, dbc_data=None, frames=None):
+	def __init__(self, dbc_data=None, frames=None, bus_load=0.0):
 		self.dbc_data = dbc_data or {}
 		self._frames = list(frames or [])
 		self.is_open = True
 		self.opened = False
 		self.closed = False
+		self._bus_load = bus_load
 
 	def dbc_message_signals(self):
 		return self.dbc_data
@@ -29,6 +31,9 @@ class _FakeCan:
 			return None
 		return self._frames.pop(0)
 
+	def bus_load(self):
+		return self._bus_load
+
 	def close(self):
 		self.closed = True
 		self.is_open = False
@@ -39,6 +44,7 @@ def _collect_events(worker):
 	worker.signals.dbc_ready.connect(lambda data: events.append(("dbc_ready", data)))
 	worker.signals.connected.connect(lambda: events.append(("connected",)))
 	worker.signals.frame_received.connect(lambda msg: events.append(("frame_received", msg)))
+	worker.signals.bus_load_updated.connect(lambda percent: events.append(("bus_load_updated", percent)))
 	worker.signals.disconnected.connect(lambda: events.append(("disconnected",)))
 	worker.signals.error.connect(lambda msg: events.append(("error", msg)))
 	return events
@@ -126,3 +132,37 @@ def test_run_stops_the_receive_loop_once_the_stop_event_is_set(qapp):
 		("frame_received", "one-frame"),
 		("disconnected",),
 	]
+
+
+def test_run_polls_bus_load_once_the_interval_has_elapsed(qapp, monkeypatch):
+	# One monotonic() call happens right before the loop (baseline), then one
+	# more per loop iteration (3 real frames + 1 final call once they're
+	# exhausted, which also ends the loop - see the other tests' framing).
+	# The gap only crosses _BUS_LOAD_POLL_INTERVAL (1.0s) on the 3rd frame.
+	monkeypatch.setattr(can_worker_module, "monotonic", iter([0.0, 0.3, 0.6, 1.1, 1.2]).__next__)
+	fake_can = _FakeCan(frames=["f1", "f2", "f3"], bus_load=42.5)
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert events == [
+		("dbc_ready", {}),
+		("connected",),
+		("frame_received", "f1"),
+		("frame_received", "f2"),
+		("frame_received", "f3"),
+		("bus_load_updated", 42.5),
+		("disconnected",),
+	]
+
+
+def test_run_does_not_poll_bus_load_before_the_interval_has_elapsed(qapp, monkeypatch):
+	monkeypatch.setattr(can_worker_module, "monotonic", iter([0.0, 0.2, 0.4, 0.5]).__next__)
+	fake_can = _FakeCan(frames=["f1", "f2"], bus_load=42.5)
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert ("bus_load_updated", 42.5) not in events
