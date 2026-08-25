@@ -141,9 +141,14 @@ jobs:
   build:
     needs: [check-pr, test, sync-develop]
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && needs.check-pr.outputs.has_open_pr != 'true' }}
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows]
     env:
-      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
+      # Outside github.workspace on purpose: actions/checkout runs `git
+      # clean -ffdx` by default, which would wipe an untracked cache dir
+      # living inside the checkout between runs. A fixed path on the
+      # runner's own disk persists across jobs without needing
+      # actions/cache at all.
+      NUITKA_CACHE_DIR: C:\ci-cache\nuitka
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -198,24 +203,6 @@ jobs:
           $venvPath = (Resolve-Path ".venv").Path
           echo "$venvPath\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "VIRTUAL_ENV=$venvPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Cache Nuitka compilation cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.NUITKA_CACHE_DIR }}
-          # Keyed on run_id (always unique) so every run saves a fresh cache
-          # entry instead of being pinned to a pyproject.toml hash - the
-          # version bump in pyproject.toml right before this job runs
-          # (see prepare-release) would otherwise bust the exact key on
-          # nearly every release and permanently orphan the previous cache,
-          # since actions/cache never overwrites an existing key. Nuitka's
-          # own cache is content-hashed per module, so restoring a cache
-          # from an unrelated previous run is safe - it just recompiles
-          # whatever actually changed.
-          key: nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-${{ github.run_id }}
-          restore-keys: |
-            nuitka-${{ runner.os }}-python${{ steps.setup-python.outputs.python-version }}-
-            nuitka-${{ runner.os }}-
 
       - name: make compile
         shell: bash
