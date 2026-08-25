@@ -24,6 +24,7 @@ class GithubTokenUI(QDialog):
 		self.ui = Ui_Dialog()
 		self.ui.setupUi(self)
 		token = GithubToken.get_token()
+		self.ui.clearTokenBtn.clicked.connect(self.clear_token_btn)
 		if (token is not None):
 			self.ui.accessToken.setText(token)
 
@@ -35,9 +36,29 @@ class GithubTokenUI(QDialog):
 			GithubToken.set_token(self.ui.accessToken.text())
 			super().accept()
 		else:
-			QMessageBox.warning(
+			res = QMessageBox.warning(
 				self,
 				"Empty Fields",
 				"The access token field is empty!",
+				QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Ignore,
 				QMessageBox.StandardButton.Ok
 			)
+
+			if res == QMessageBox.StandardButton.Ignore:
+				GithubToken.set_token(self.ui.accessToken.text())
+				super().accept()
+
+	def clear_token_btn(self):
+		res = QMessageBox.warning(
+			self,
+			"Confirmation",
+			"Are you sure you want to clear your token?",
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+			QMessageBox.StandardButton.No
+		)
+
+		if res == QMessageBox.StandardButton.Yes:
+			GithubToken.clear_token()
+			GithubToken.clear_cache()
+			self.ui.accessToken.clear()
+			super().accept()

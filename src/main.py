@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 	QSplashScreen,
 )
 
+from a2l_viewer import A2LViewer
 from can_viewer import CANViewer
 from elf_viewer import ELFViewer
 from github_token_ui import GithubTokenUI
@@ -382,6 +383,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			board.Flasher.flash(board, self.serialPortsBox.currentText(), self.flash_file, self.flashToolSettings.currentText(), self.flashToolSubSettingsBox.currentText())
 			self.uploadBoardButton.setEnabled(True)
 
+	def set_enabled_connection_related_items(self, val):
+		self.uploadBoardButton.setEnabled(val)
+		self.sendTXDataButton.setEnabled(not val)
+		self.refreshCOMPortButton.setEnabled(val)
+		self.uploadButton.setEnabled(val)
+		self.fileName.setEnabled(val)
+		self.baudRateBox.setEnabled(val)
+		self.boardSelect.setEnabled(val)
+		self.actionOpen_File.setEnabled(val)
+		self.serialPortsBox.setEnabled(val)
+
 	def toggle_connection(self):
 		"""Opens or closes the serial monitor connection depending on current state.
 
@@ -395,15 +407,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			
 			# Attempt to claim port access in standard Read/Write configuration
 			if self.serial.open(QIODevice.OpenModeFlag.ReadWrite):
-				self.uploadBoardButton.setEnabled(False)
 				self.serialMonitorButton.setText("Disconnect")
+				self.set_enabled_connection_related_items(False)
+				self.statusBar.showMessage("Connected via serial!") # pyright: ignore[reportAttributeAccessIssue]
 				self.logText.append(f"--- Port: {self.serial.portName()} ---")
 				self.logText.append(f"--- Baud: {self.serial.baudRate()} ---")
 				self.logText.append("--- Connected Successfully ---")
 			else:
+				self.statusBar.showMessage("Failed to connect via serial...", 5000) # pyright: ignore[reportAttributeAccessIssue]
 				self.logText.append(f"--- Connection Failed: {self.serial.errorString()} ---")
 		else:
-			self.uploadBoardButton.setEnabled(True)
+			self.set_enabled_connection_related_items(True)
 			self.serial.close()
 			self.serialMonitorButton.setText("Connect")
 			self.logText.append("--- Disconnected ---")
@@ -494,9 +508,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 	def open_elf_viewer(self):
 		if self.elfViewer is None:
 			self.elfViewer = ELFViewer(self)
-		
+
 		self.elfViewer.show()
 		self.elfViewer.activateWindow()
+
+	def open_a2l_viewer(self):
+		"""Shows the A2L viewer window, creating it on first use.
+
+		The same :class:`A2LViewer` instance is reused across shows rather
+		than being recreated each time, so a previously parsed file stays
+		on screen when reopening the window.
+		"""
+		if self.a2lViewer is None:
+			self.a2lViewer = A2LViewer(self)
+
+		self.a2lViewer.show()
+		self.a2lViewer.activateWindow()
 
 	def show_about(self):
 		"""Shows the **Help > About** dialog with the app's version and credits."""
@@ -651,6 +678,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		self.actionCANLib_Kvaser.triggered.connect(self.open_can_viewer)
 
 		self.action_Elf_Parser.triggered.connect(self.open_elf_viewer)
+		self.action_A2L_Parser.triggered.connect(self.open_a2l_viewer)
 
 	def get_cached_settings(self):
 		"""Restores the previously selected board, firmware file, and baud rate from :class:`StoredSettings`."""
@@ -737,12 +765,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 		"""Handles the remaining one-off startup steps that don't fit the other load tasks."""
 		self.canViewer = None
 		self.elfViewer = None
+		self.a2lViewer = None
 		self.refresh_serial_ports()
 		self.vignette.raise_()
 		self.installEventFilter(self)
 		self.logText.clear()
 		self.logText.setFontPointSize(8)
 		self.check_can_upload()
+		self.set_enabled_connection_related_items(True)
 
 	#endregion
 

@@ -97,6 +97,9 @@ class StoredSettings(Enum):
 	# ELF Parser Settings
 	ELF_FILE = "elf_settings/elf_file"
 
+	# A2L Parser Settings
+	A2L_FILE = "a2l_settings/a2l_file"
+
 	# Cache Settings
 	STORED_CACHE_HASHES = "protected/cache_hashes"
 

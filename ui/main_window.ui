@@ -70,6 +70,9 @@
        </item>
        <item row="11" column="3">
         <widget class="QPushButton" name="serialMonitorButton">
+         <property name="statusTip">
+          <string>Connect and disconnect to a board using UART.</string>
+         </property>
          <property name="text">
           <string>Connect</string>
          </property>
@@ -84,6 +87,9 @@
        </item>
        <item row="0" column="2">
         <widget class="QPushButton" name="refreshCOMPortButton">
+         <property name="statusTip">
+          <string>Refresh the COM ports.</string>
+         </property>
          <property name="text">
           <string>Refresh</string>
          </property>
@@ -148,6 +154,9 @@
        </item>
        <item row="4" column="2">
         <widget class="QPushButton" name="uploadButton">
+         <property name="statusTip">
+          <string>Load a file from disk to flash a board.</string>
+         </property>
          <property name="text">
           <string>Open File</string>
          </property>
@@ -171,6 +180,9 @@
        </item>
        <item row="6" column="2">
         <widget class="QPushButton" name="clearLogsButton">
+         <property name="statusTip">
+          <string>Clear the logs text box.</string>
+         </property>
          <property name="text">
           <string>Clear Logs</string>
          </property>
@@ -201,6 +213,9 @@
        </item>
        <item row="8" column="1">
         <widget class="QPushButton" name="uploadBoardButton">
+         <property name="statusTip">
+          <string>Upload the currently selected file to a connected board.</string>
+         </property>
          <property name="text">
           <string>Upload to Board</string>
          </property>
@@ -273,16 +288,20 @@
     </property>
     <addaction name="actionCANLib_Kvaser"/>
     <addaction name="action_Elf_Parser"/>
-    <addaction name="separator"/>
+    <addaction name="action_A2L_Parser"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menu_Tools"/>
    <addaction name="menu_Help"/>
   </widget>
+  <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpen_File">
    <property name="text">
     <string>&amp;Open...</string>
+   </property>
+   <property name="statusTip">
+    <string>Open file from disk.</string>
    </property>
   </action>
   <action name="actionAdd_External_Flashing_Tool">
@@ -299,25 +318,40 @@
    <property name="text">
     <string>Check for &amp;Updates</string>
    </property>
+   <property name="statusTip">
+    <string>Check for any application updates.</string>
+   </property>
   </action>
   <action name="action_Reload_App">
    <property name="text">
     <string>&amp;Reload App</string>
+   </property>
+   <property name="statusTip">
+    <string>Reload the application.</string>
    </property>
   </action>
   <action name="actionGithubPAT">
    <property name="text">
     <string>&amp;Github Personal Access Token...</string>
    </property>
+   <property name="statusTip">
+    <string>Set a Github Personal Access Token.</string>
+   </property>
   </action>
   <action name="actionRemote_Configurations">
    <property name="text">
     <string>Remote &amp;Configurations...</string>
    </property>
+   <property name="statusTip">
+    <string>Setup remote configurations.</string>
+   </property>
   </action>
   <action name="actionCANLib_Kvaser">
    <property name="text">
     <string>&amp;CAN</string>
+   </property>
+   <property name="statusTip">
+    <string>Open CAN Viewer.</string>
    </property>
   </action>
   <action name="action_Elf_Parser">
@@ -327,6 +361,9 @@
    <property name="text">
     <string>&amp;Elf Parser</string>
    </property>
+   <property name="statusTip">
+    <string>Open ELF Parser.</string>
+   </property>
    <property name="visible">
     <bool>true</bool>
    </property>
@@ -334,6 +371,9 @@
   <action name="action_About">
    <property name="text">
     <string>&amp;About</string>
+   </property>
+   <property name="statusTip">
+    <string>Open about menu.</string>
    </property>
   </action>
   <action name="actionClear_All_Settings">
@@ -345,10 +385,24 @@
    <property name="text">
     <string>&amp;Invalidate Cache</string>
    </property>
+   <property name="statusTip">
+    <string>Invalidate stored cache.</string>
+   </property>
   </action>
   <action name="action_Preferences">
    <property name="text">
     <string>&amp;Preferences...</string>
+   </property>
+   <property name="statusTip">
+    <string>Open preferences menu.</string>
+   </property>
+  </action>
+  <action name="action_A2L_Parser">
+   <property name="text">
+    <string>&amp;A2L Parser</string>
+   </property>
+   <property name="statusTip">
+    <string>Open A2L Parser.</string>
    </property>
   </action>
  </widget>

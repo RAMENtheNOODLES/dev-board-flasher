@@ -299,6 +299,20 @@ class CAN:
 
 		self._channel.write(frame)
 
+	def bus_load(self) -> float:
+		"""Return the current CAN bus load as a percentage (0.0-100.0).
+
+		Wraps `canlib.canlib.Channel.get_bus_statistics()`, whose `busLoad`
+		field is an int in [0, 10000] representing 0.00%-100.00%. That call
+		blocks for ~10ms (the driver needs a moment to refresh its cached
+		statistics after being asked for them), so - like `receive` - keep
+		polling calls off the GUI thread; see `CanWorker`.
+		"""
+		if self._channel is None:
+			raise RuntimeError("CAN channel is not open")
+
+		return self._channel.get_bus_statistics().busLoad / 100
+
 	def receive(self, timeout: int = 500) -> canlib.Frame | None:
 		"""Read a single raw frame, or `None` on timeout.
 

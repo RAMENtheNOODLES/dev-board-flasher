@@ -9,7 +9,7 @@ from canlib import Device
 from canlib.frame import Frame
 from PySide6.QtCore import QThreadPool, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QProgressBar
 
 from tools.can import CAN
 from ui_can import Ui_CANViewer
@@ -43,6 +43,16 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 	"""
 
 	_CAN_SAMPLE_RATE: int = 100
+
+	# Bus-load progress bar: text/format shown before the first reading, and
+	# the value thresholds/colors (traffic-light convention) used after.
+	_BUS_LOAD_PLACEHOLDER_FORMAT: str = "Bus Load: --"
+	_BUS_LOAD_FORMAT: str = "Bus Load: %p%"
+	_BUS_LOAD_YELLOW_THRESHOLD: float = 50.0
+	_BUS_LOAD_RED_THRESHOLD: float = 80.0
+	_BUS_LOAD_COLOR_LOW: str = "#2ecc71"
+	_BUS_LOAD_COLOR_MEDIUM: str = "#fff200"
+	_BUS_LOAD_COLOR_HIGH: str = "#e74c3c"
 
 	def __init__(self, parent = None) -> None:
 		"""Builds the window, loads the bundled font, and populates devices/channels.
@@ -105,6 +115,19 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.log_file: TextIO | None = None
 		self.log_writer = None
 		self.actionSto_p_Logging.setEnabled(False)
+
+		# Permanent (not cleared by statusBar().showMessage()) bus-load
+		# meter, updated via CanWorker.signals.bus_load_updated while
+		# connected; see _on_bus_load_updated/_on_can_disconnected. Fixed
+		# width keeps it a compact, stable-sized corner of the status bar
+		# rather than resizing as its text changes.
+		self.busLoadProgressBar = QProgressBar(self)
+		self.busLoadProgressBar.setRange(0, 100)
+		self.busLoadProgressBar.setValue(0)
+		self.busLoadProgressBar.setTextVisible(True)
+		self.busLoadProgressBar.setFormat(self._BUS_LOAD_PLACEHOLDER_FORMAT)
+		self.busLoadProgressBar.setFixedWidth(160)
+		self.statusbar.addPermanentWidget(self.busLoadProgressBar)
 
 		self.device_check_timer = QTimer(self)
 		self.device_check_timer.timeout.connect(self.populate_devices)
@@ -278,6 +301,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		worker.signals.connected.connect(self._on_can_connected)
 		worker.signals.disconnected.connect(self._on_can_disconnected)
 		worker.signals.frame_received.connect(self._on_frame_received)
+		worker.signals.bus_load_updated.connect(self._on_bus_load_updated)
 		worker.signals.error.connect(self._on_can_error)
 
 		self.stop_event = stop_event
@@ -314,6 +338,38 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		self.connectButton.setEnabled(True)
 		self.connectButton.setText("Connect")
 		self._set_controls_enabled(True)
+		self.busLoadProgressBar.setValue(0)
+		self.busLoadProgressBar.setFormat(self._BUS_LOAD_PLACEHOLDER_FORMAT)
+		self.busLoadProgressBar.setStyleSheet("")
+
+	def _on_bus_load_updated(self, percent: float) -> None:
+		"""Updates the status bar's permanent bus-load meter. Connected to ``CanWorker.signals.bus_load_updated``.
+
+		Args:
+			percent (float): Current CAN bus load, 0.0-100.0.
+		"""
+		self.busLoadProgressBar.setFormat(self._BUS_LOAD_FORMAT)
+		self.busLoadProgressBar.setValue(round(percent))
+		self.busLoadProgressBar.setStyleSheet(
+			f"QProgressBar::chunk {{ background-color: {self._bus_load_color(percent)}; }}"
+		)
+
+	@classmethod
+	def _bus_load_color(cls, percent: float) -> str:
+		"""Maps a bus-load percentage to a traffic-light color for the progress bar's chunk.
+
+		Args:
+			percent (float): Current CAN bus load, 0.0-100.0.
+
+		Returns:
+			str: A ``#rrggbb`` color - green below :data:`_BUS_LOAD_YELLOW_THRESHOLD`,
+				yellow up to :data:`_BUS_LOAD_RED_THRESHOLD`, red above that.
+		"""
+		if percent >= cls._BUS_LOAD_RED_THRESHOLD:
+			return cls._BUS_LOAD_COLOR_HIGH
+		if percent >= cls._BUS_LOAD_YELLOW_THRESHOLD:
+			return cls._BUS_LOAD_COLOR_MEDIUM
+		return cls._BUS_LOAD_COLOR_LOW
 
 	def _on_can_error(self, message: str):
 		"""Logs and shows a worker error. Connected to ``CanWorker.signals.error``.

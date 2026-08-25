@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dev-board-flasher"
-version = "1.3.0"
+version = "1.8.0-dev0"
 description = "A short description of my project"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,7 +25,8 @@ dependencies = [
 	"usb-monitor>=1.23",
 	"packaging>=26.3",
 	"diskcache>=5.6.3",
-	"pyelftools>=0.33"
+	"pyelftools>=0.33",
+	"pya2l>=0.2.2",
 ]
 
 [project.urls]
@@ -40,7 +41,7 @@ dev = [
 	"Nuitka>=4.1.3",
 	"ImageIO>=2.37.4",
 	"zstandard>=0.25.0",
-	"reloadium>=1.5.1"
+	"reloadium>=1.5.1",
 ]
 
 [tool.ruff]
@@ -91,6 +92,7 @@ markers = [
 files = [
     "assets/fonts.qrc",
     "assets/images.qrc",
+    "src/a2l_viewer.py",
     "src/can_logging.py",
     "src/can_viewer.py",
     "src/elf_viewer.py",
@@ -128,6 +130,7 @@ files = [
     "src/utils/wiz_utils/usb_worker.py",
     "src/utils/wiz_utils/wiz_logger.py",
     "src/vignette_overlay.py",
+    "ui/a2l.ui",
     "ui/can.ui",
     "ui/elf_viewer.ui",
     "ui/github_token.ui",
