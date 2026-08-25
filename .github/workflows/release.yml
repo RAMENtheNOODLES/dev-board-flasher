@@ -147,6 +147,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # prepare-release may have just pushed a version-bump/changelog
+          # commit to main; checking out github.ref_name (the branch tip)
+          # rather than the default trigger SHA picks that commit up.
+          ref: ${{ github.ref_name }}
 
       - name: Set up Python
         id: setup-python
