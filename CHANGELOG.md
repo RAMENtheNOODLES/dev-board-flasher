@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-08-25
+
+### Added
+
+### Changed
+
+- Fixed issue with pya2l library
+
 ## [1.8.1] - 2026-08-25
 
 ### Added
@@ -270,7 +278,8 @@ Initial release.
 - Build output validation before packaging; Nuitka `extra_args` update.
 - Streamlined virtual environment activation in the CI workflow.
 
-[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.8.3...HEAD
+[1.8.3]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.8.1...v1.8.3
 [1.8.1]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.3.0...v1.8.1
 [1.3.0]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.3.0
 [1.0.1]: https://github.com/RAMENtheNOODLES/dev-board-flasher/compare/v1.0.0...v1.0.1
