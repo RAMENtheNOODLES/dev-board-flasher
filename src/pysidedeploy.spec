@@ -75,7 +75,11 @@ mode = onefile
 # dropped from the build unless explicitly included here. likewise, pya2l
 # ships its native a2l_grpc backend binaries (per-platform .dll/.so) as
 # package data rather than importable code, so they need their own flag.
-extra_args = --quiet --noinclude-qt-translations --windows-console-mode=attach --include-data-dir=config=config --include-data-files=pyproject.toml=pyproject.toml --include-package-data=certifi --include-package=pya2l --include-package-data=pya2l --assume-yes-for-downloads
+# --jobs=14 (not the self-hosted VM's full 16) leaves the OS/runner
+# process scheduling headroom during the parallel C-compile phase - at
+# 16/16 the runner's own listener process can get starved long enough
+# for GitHub to consider the connection lost mid-build.
+extra_args = --quiet --noinclude-qt-translations --windows-console-mode=attach --include-data-dir=config=config --include-data-files=pyproject.toml=pyproject.toml --include-package-data=certifi --include-package=pya2l --include-package-data=pya2l --assume-yes-for-downloads --jobs=14
 
 [buildozer]
 
