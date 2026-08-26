@@ -68,7 +68,14 @@ macos.permissions =
 mode = onefile
 
 # specify any extra nuitka arguments
-extra_args = --quiet --noinclude-qt-translations --windows-console-mode=attach --include-data-dir=config=config --include-data-files=pyproject.toml=pyproject.toml --include-package-data=certifi --assume-yes-for-downloads
+# pya2l's generated protobuf/grpc submodules (a2ml_pb2, if_data_pb2,
+# shared_pb2, *_pb2_grpc) are only reachable through the broken
+# `from protobuf import x` statements described in a2l_viewer.py, which
+# nuitka's static import analysis can't follow - so they're silently
+# dropped from the build unless explicitly included here. likewise, pya2l
+# ships its native a2l_grpc backend binaries (per-platform .dll/.so) as
+# package data rather than importable code, so they need their own flag.
+extra_args = --quiet --noinclude-qt-translations --windows-console-mode=attach --include-data-dir=config=config --include-data-files=pyproject.toml=pyproject.toml --include-package-data=certifi --include-package=pya2l --include-package-data=pya2l --assume-yes-for-downloads
 
 [buildozer]
 
