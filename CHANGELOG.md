@@ -10,9 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **CAN Viewer**: J1939 DM2 (Previously Active DTCs) messages are now parsed
+  and shown in the message tree alongside DM1, including BAM-reassembled
+  multi-DTC messages. Uses the same SPN/FMI name lookups as DM1.
+
 ### Changed
 
 - Fixed issue with pya2l library
+- Fixed a transmit buffer overflow when sending a CAN message with nothing
+  else on the bus to acknowledge it: TX sends now wait for the frame to
+  actually go out (or time out) instead of just queuing it, so a stuck,
+  endlessly-retried frame no longer lets periodic TX sends pile up behind it
+  until the driver's transmit buffer overflows. A message that keeps timing
+  out on every retry (also nothing-on-the-bus) now only shows one "CAN
+  Error" popup instead of one per retry; it re-appears if the send recovers
+  and then fails again.
 
 ## [1.8.1] - 2026-08-25
 

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import canlib
 from canlib import j1939
 
-from .j1939_dm1 import Dm1Message, Dm1TransportDecoder
+from .j1939_dm1 import Dm1Message, Dm1TransportDecoder, Dm2Message, Dm2TransportDecoder
 
 if TYPE_CHECKING:
 	# typing.Self needs Python 3.11+, but this is TYPE_CHECKING-only (never
@@ -112,6 +112,7 @@ class CAN:
 		# logs the first one per connection instead of once per error.
 		self._warned_about_errors = False
 		self._dm1_decoder = Dm1TransportDecoder()
+		self._dm2_decoder = Dm2TransportDecoder()
 
 		if dbc_path is not None:
 			self.load_dbc(dbc_path)
@@ -342,6 +343,7 @@ class CAN:
 		# A fresh connection shouldn't try to resume a BAM reassembly left
 		# mid-transfer by whatever was previously on the bus.
 		self._dm1_decoder = Dm1TransportDecoder()
+		self._dm2_decoder = Dm2TransportDecoder()
 
 	def close(self) -> None:
 		"""Go bus off and close the channel, if open."""
@@ -360,18 +362,32 @@ class CAN:
 	def __exit__(self, exc_type, exc_val, exc_tb) -> None:
 		self.close()
 
-	def send(self, frame_id: int, data: bytes, extended: bool = False) -> None:
-		"""Send a raw CAN frame."""
+	def send(self, frame_id: int, data: bytes, extended: bool = False, timeout: int = 500) -> None:
+		"""Send a raw CAN frame, waiting up to `timeout` ms for it to actually go out.
+
+		Uses `Channel.writeWait` rather than the fire-and-forget `Channel.write`
+		specifically so this blocks (briefly) instead of just queuing: with no
+		other node on the bus to ACK, the controller retries the same frame
+		indefinitely, so a caller that kept firing more `write()`s in the
+		meantime (e.g. `TxScheduler`'s periodic sends) would pile frames up
+		behind it until the driver's transmit buffer overflows. Waiting here
+		lets that back-pressure surface as an ordinary, per-send `CanTimeout`
+		instead.
+		"""
 		if self._channel is None:
 			raise RuntimeError("CAN channel is not open")
 
 		canlib_can = _canlib_can()
 		flags = canlib_can.MessageFlag.EXT if extended else canlib_can.MessageFlag.STD
 		frame = canlib.Frame(id_=frame_id, data=data, flags=flags)
-		self._channel.write(frame)
+		self._channel.writeWait(frame, timeout)
 
-	def send_message(self, name: str, **signal_values: float) -> canlib.Frame:
-		"""Encode and send a message by name using the loaded DBC file, returning the frame that was sent."""
+	def send_message(self, name: str, *, timeout: int = 500, **signal_values: float) -> canlib.Frame:
+		"""Encode and send a message by name using the loaded DBC file, returning the frame that was sent.
+
+		See :meth:`send` for why this waits (up to `timeout` ms) for the frame
+		to actually go out rather than just queuing it.
+		"""
 		if self._channel is None:
 			raise RuntimeError("CAN channel is not open")
 		if self._dbc is None:
@@ -383,7 +399,7 @@ class CAN:
 		for signal_name, value in signal_values.items():
 			getattr(bound_message, signal_name).phys = value
 
-		self._channel.write(frame)
+		self._channel.writeWait(frame, timeout)
 		return frame
 
 	def bus_load(self) -> float:
@@ -468,6 +484,18 @@ class CAN:
 			return None
 
 		return self._dm1_decoder.feed(frame.id, bytes(frame.data))
+
+	def feed_dm2(self, frame: canlib.Frame) -> Dm2Message | None:
+		"""Feeds `frame` to the J1939 DM2 (Previously Active DTCs) transport-protocol reassembler.
+
+		Mirrors :meth:`feed_dm1` - see its docstring for the shared extended-id
+		and BAM-reassembly details.
+		"""
+		canlib_can = _canlib_can()
+		if not (frame.flags & canlib_can.MessageFlag.EXT):
+			return None
+
+		return self._dm2_decoder.feed(frame.id, bytes(frame.data))
 
 	def __iter__(self) -> Iterator[canlib.Frame]:
 		"""Yield frames as they arrive until the channel is closed."""

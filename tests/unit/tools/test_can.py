@@ -235,7 +235,7 @@ class _FakeSendChannel:
 	def __init__(self):
 		self.written = []
 
-	def write(self, frame):
+	def writeWait(self, frame, timeout):
 		self.written.append(frame)
 
 
@@ -282,6 +282,51 @@ def test_send_message_raises_when_no_dbc_is_loaded():
 
 	with pytest.raises(RuntimeError):
 		can.send_message("Msg1")
+
+
+def test_send_message_passes_the_timeout_through_to_writewait():
+	"""send_message waits for the frame to actually go out (writeWait) rather than just queuing it (write) -
+	with no other node on the bus to ACK, a fire-and-forget write() would let queued frames pile up behind
+	the one stuck retrying until the driver's transmit buffer overflows."""
+	frame = SimpleNamespace(id=0x100, data=bytearray(8))
+	message = _FakeSendMessage(["Sig1"], frame)
+	can = _make_can()
+	can._dbc = _FakeSendDbc(message)
+
+	class _TimeoutCapturingChannel:
+		def writeWait(self, frame, timeout):
+			self.timeout = timeout
+
+	channel = _TimeoutCapturingChannel()
+	can._channel = channel
+
+	can.send_message("Msg1", Sig1=42.0, timeout=250)
+
+	assert channel.timeout == 250
+
+
+def test_send_writes_the_encoded_frame_with_a_timeout(monkeypatch):
+	monkeypatch.setattr(can_module, "_canlib_can", lambda: _fake_ext_canlib_can(ext_flag=0x4))
+
+	can = _make_can()
+	channel = _FakeSendChannel()
+	can._channel = channel
+
+	can.send(frame_id=0x123, data=b"\x01\x02", extended=True, timeout=250)
+
+	assert len(channel.written) == 1
+	sent_frame = channel.written[0]
+	assert sent_frame.id == 0x123
+	assert bytes(sent_frame.data) == b"\x01\x02"
+	assert sent_frame.flags == 0x4
+
+
+def test_send_raises_when_the_channel_is_not_open():
+	can = _make_can()
+	can._channel = None
+
+	with pytest.raises(RuntimeError):
+		can.send(frame_id=0x123, data=b"\x00")
 
 
 class _FakeInterpretSignal:
@@ -440,6 +485,32 @@ def test_feed_dm1_decodes_an_extended_id_dm1_frame(monkeypatch):
 	dm1_frame = SimpleNamespace(id=dm1_can_id, data=bytearray([0x00, 0x00]), flags=ext_flag)
 
 	result = can.feed_dm1(dm1_frame)
+
+	assert result is not None
+	assert result.source_address == 0x17
+
+
+def test_feed_dm2_ignores_standard_id_frames(monkeypatch):
+	"""J1939 always uses 29-bit extended ids, so a standard-id frame can't be J1939 traffic."""
+	monkeypatch.setattr(can_module, "_canlib_can", lambda: _fake_ext_canlib_can(ext_flag=0x4))
+
+	can = _make_can()
+	can._dm2_decoder = can_module.Dm2TransportDecoder()
+	standard_frame = SimpleNamespace(id=0x123, data=b"\x00\x00", flags=0)
+
+	assert can.feed_dm2(standard_frame) is None
+
+
+def test_feed_dm2_decodes_an_extended_id_dm2_frame(monkeypatch):
+	ext_flag = 0x4
+	monkeypatch.setattr(can_module, "_canlib_can", lambda: _fake_ext_canlib_can(ext_flag=ext_flag))
+
+	can = _make_can()
+	can._dm2_decoder = can_module.Dm2TransportDecoder()
+	dm2_can_id = 0x18FECB17  # PGN 0xFECB (DM2), source address 0x17
+	dm2_frame = SimpleNamespace(id=dm2_can_id, data=bytearray([0x00, 0x00]), flags=ext_flag)
+
+	result = can.feed_dm2(dm2_frame)
 
 	assert result is not None
 	assert result.source_address == 0x17

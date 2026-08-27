@@ -439,9 +439,12 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 		"""
 		decoded = self.can.decode(frame) if self.can is not None else None
 		dm1 = self.can.feed_dm1(frame) if self.can is not None else None
+		dm2 = self.can.feed_dm2(frame) if self.can is not None else None
 		self.canLogs.update_tree(frame, self.channel, decoded)
 		if dm1 is not None:
 			self.canLogs.update_dm1(dm1, self.channel, frame.timestamp)
+		if dm2 is not None:
+			self.canLogs.update_dm2(dm2, self.channel, frame.timestamp)
 
 		if self.log_writer is not None:
 			signals = "; ".join(f"{name}={value}" for name, value in decoded.items()) if decoded is not None else ""
@@ -449,6 +452,10 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 				dtcs = ", ".join(f"SPN{dtc.spn}/FMI{dtc.fmi}" for dtc in dm1.dtcs) if dm1.dtcs else "none"
 				dm1_summary = f"DM1[SA=0x{dm1.source_address:02X}] active_dtcs={dtcs}"
 				signals = f"{signals}; {dm1_summary}" if signals else dm1_summary
+			if dm2 is not None:
+				dtcs = ", ".join(f"SPN{dtc.spn}/FMI{dtc.fmi}" for dtc in dm2.dtcs) if dm2.dtcs else "none"
+				dm2_summary = f"DM2[SA=0x{dm2.source_address:02X}] previously_active_dtcs={dtcs}"
+				signals = f"{signals}; {dm2_summary}" if signals else dm2_summary
 
 			self.log_writer.writerow([
 				# .astimezone() attaches the local tzinfo without changing the

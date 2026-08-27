@@ -1,3 +1,4 @@
+import logging
 import queue
 from threading import Event
 from time import monotonic
@@ -63,6 +64,7 @@ class CanWorker(PlainRunnable):
 				to each ``CAN.receive`` call. Defaults to ``100``.
 		"""
 		super().__init__(task_id, stop_event)
+		self.logger = logging.getLogger(__name__)
 		self.signals = CanWorkerSignals()
 		self.can = can_instance
 		self.receive_timeout = receive_timeout
@@ -71,6 +73,13 @@ class CanWorker(PlainRunnable):
 		# made from run()'s own loop below, since the channel must not be
 		# touched from more than one thread at once.
 		self._send_queue: queue.Queue[tuple[str, dict[str, float]]] = queue.Queue()
+		# Message names currently failing to send (e.g. TxScheduler retrying
+		# one at a time with nothing on the bus to ACK it - see CAN.send/
+		# send_message). Tracked so a message stuck failing on every retry
+		# only surfaces via `error` (and its `QMessageBox.critical` popup in
+		# CANViewer._on_can_error) once, instead of flooding it on every
+		# retry - each repeat is still logged at debug level.
+		self._names_with_active_send_error: set[str] = set()
 
 	def enqueue_send(self, message_name: str, signal_values: dict[str, float]) -> None:
 		"""Queues a DBC message to be sent by `run`'s loop, on this worker's own thread."""
@@ -87,8 +96,13 @@ class CanWorker(PlainRunnable):
 			try:
 				frame = self.can.send_message(message_name, **signal_values)
 			except Exception as e:  # noqa: BLE001 - a bad TX config shouldn't kill the receive loop
-				self.signals.error.emit(str(e))
+				if message_name in self._names_with_active_send_error:
+					self.logger.debug("Repeated send failure for %s: %s", message_name, e)
+				else:
+					self._names_with_active_send_error.add(message_name)
+					self.signals.error.emit(str(e))
 			else:
+				self._names_with_active_send_error.discard(message_name)
 				self.signals.frame_sent.emit(frame)
 
 	@Slot()

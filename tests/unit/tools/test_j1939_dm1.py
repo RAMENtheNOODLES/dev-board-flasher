@@ -2,8 +2,11 @@ import pytest
 
 from tools.j1939_dm1 import (
 	DM1_PGN,
+	DM2_PGN,
 	Dm1TransportDecoder,
+	Dm2TransportDecoder,
 	decode_dm1_payload,
+	decode_dm2_payload,
 	load_fmi_names,
 	load_spn_names,
 )
@@ -71,6 +74,20 @@ def test_decode_dm1_payload_stops_at_all_0xff_padding_record():
 	assert len(msg.dtcs) == 1
 
 
+def test_decode_dm2_payload_decodes_multiple_dtc_records():
+	"""DM2 shares DM1's exact wire format - see tools.j1939_dm1's module docstring."""
+	payload = (
+		bytes([0x00, 0x00])
+		+ _dtc_bytes(spn=1234, fmi=3, occurrence_count=5, spn_conversion_method=1)
+		+ _dtc_bytes(spn=5678, fmi=7, occurrence_count=2, spn_conversion_method=0)
+	)
+
+	msg = decode_dm2_payload(0x17, payload)
+
+	assert msg.source_address == 0x17
+	assert [dtc.spn for dtc in msg.dtcs] == [1234, 5678]
+
+
 def _bam_control_frame(total_size: int, packet_count: int, transported_pgn: int) -> bytes:
 	return bytes([
 		0x20,
@@ -89,6 +106,7 @@ def _bam_control_frame(total_size: int, packet_count: int, transported_pgn: int)
 _TP_CM_ID = 0x18ECFF17
 _TP_DT_ID = 0x18EBFF17
 _DM1_ID = (0x18000000) | (DM1_PGN << 8) | 0x17
+_DM2_ID = (0x18000000) | (DM2_PGN << 8) | 0x17
 
 
 def test_feed_decodes_a_direct_single_frame_dm1_message():
@@ -157,6 +175,50 @@ def test_feed_ignores_frames_for_unrelated_pgns():
 	# Some arbitrary, unrelated PGN - not DM1, TP.CM, or TP.DT.
 	unrelated_id = 0x18FF0017
 	assert decoder.feed(unrelated_id, bytes(8)) is None
+
+
+def test_feed_decodes_a_direct_single_frame_dm2_message():
+	decoder = Dm2TransportDecoder()
+	payload = bytes([0x00, 0x00]) + _dtc_bytes(spn=1234, fmi=3, occurrence_count=5, spn_conversion_method=1)
+
+	result = decoder.feed(_DM2_ID, payload)
+
+	assert result is not None
+	assert result.source_address == 0x17
+	assert result.dtcs[0].spn == 1234
+
+
+def test_feed_reassembles_a_bam_sequence_across_multiple_tp_dt_frames_for_dm2():
+	dtcs_payload = bytes([0x00, 0x00]) + b"".join(
+		_dtc_bytes(spn, fmi=1, occurrence_count=1, spn_conversion_method=0) for spn in (100, 200, 300)
+	)
+	total_size = len(dtcs_payload)
+	packet_count = (total_size + 6) // 7
+
+	decoder = Dm2TransportDecoder()
+	assert decoder.feed(_TP_CM_ID, _bam_control_frame(total_size, packet_count, DM2_PGN)) is None
+
+	result = None
+	for seq in range(1, packet_count + 1):
+		chunk = dtcs_payload[(seq - 1) * 7 : seq * 7]
+		chunk = chunk + bytes(7 - len(chunk))
+		result = decoder.feed(_TP_DT_ID, bytes([seq]) + chunk)
+
+	assert result is not None
+	assert [dtc.spn for dtc in result.dtcs] == [100, 200, 300]
+
+
+def test_dm1_and_dm2_decoders_dont_cross_react_to_each_others_bam_transfer():
+	"""A Dm2TransportDecoder shouldn't reassemble a BAM announced as carrying DM1 (and vice versa)."""
+	dm1_decoder = Dm1TransportDecoder()
+	dm2_decoder = Dm2TransportDecoder()
+
+	dm1_decoder.feed(_TP_CM_ID, _bam_control_frame(total_size=10, packet_count=2, transported_pgn=DM1_PGN))
+	dm2_decoder.feed(_TP_CM_ID, _bam_control_frame(total_size=10, packet_count=2, transported_pgn=DM1_PGN))
+
+	assert dm1_decoder.feed(_TP_DT_ID, bytes([1]) + bytes(7)) is None  # mid-transfer, not complete yet
+	# dm2_decoder never saw a BAM announcing DM2, so it has no pending reassembly to resume.
+	assert dm2_decoder.feed(_TP_DT_ID, bytes([1]) + bytes(7)) is None
 
 
 def test_load_spn_names_parses_a_two_column_csv(tmp_path):

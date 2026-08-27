@@ -1,12 +1,14 @@
-"""Parsing for SAE J1939 DM1 (Active Diagnostic Trouble Codes) messages.
+"""Parsing for SAE J1939 DM1/DM2 (Active/Previously Active Diagnostic Trouble Codes) messages.
 
 DM1 (PGN 0xFECA) is broadcast periodically by every J1939 ECU that currently
-has at least one active fault. Its payload is 2 lamp-status bytes followed
-by one 4-byte record per active DTC (SPN + FMI + occurrence count + SPN
-conversion method) - see SAE J1939-73. That only fits an 8-byte CAN frame
-when 0-1 DTCs are active; ECUs reporting more use the SAE J1939-21 BAM
-transport protocol (TP.CM + TP.DT), which :class:`Dm1TransportDecoder`
-reassembles.
+has at least one active fault. DM2 (PGN 0xFECB) reports the same ECU's
+*previously* active faults and shares DM1's exact wire format, so everything
+below decodes both - see SAE J1939-73. Their shared payload is 2 lamp-status
+bytes followed by one 4-byte record per DTC (SPN + FMI + occurrence count +
+SPN conversion method). That only fits an 8-byte CAN frame when 0-1 DTCs are
+present; ECUs reporting more use the SAE J1939-21 BAM transport protocol
+(TP.CM + TP.DT), which :class:`Dm1TransportDecoder`/:class:`Dm2TransportDecoder`
+reassemble.
 """
 
 from __future__ import annotations
@@ -17,16 +19,18 @@ from pathlib import Path
 
 from canlib import j1939
 
-#: PGN of the DM1 message itself.
+#: PGN of the DM1 (Active DTCs) message itself.
 DM1_PGN = 0xFECA
+#: PGN of the DM2 (Previously Active DTCs) message itself.
+DM2_PGN = 0xFECB
 #: PGN of a BAM's announcement (TP.CM) frame. The broadcast destination
 #: (0xFF) is carried separately, in the CAN id's PDU-specific field.
 _TP_CM_PGN = 0xEC00
 #: PGN of a BAM's data-transfer (TP.DT) frames.
 _TP_DT_PGN = 0xEB00
 #: TP.CM control byte identifying a Broadcast Announce Message, as opposed
-#: to a point-to-point RTS/CTS session - DM1 is always broadcast, so that's
-#: the only kind this needs to reassemble.
+#: to a point-to-point RTS/CTS session - DM1/DM2 are always broadcast, so
+#: that's the only kind this needs to reassemble.
 _BAM_CONTROL_BYTE = 0x20
 
 # SAE J1939-73 2-bit lamp status/flash codes. Byte 1 (status) and byte 2
@@ -67,7 +71,16 @@ class Dtc:
 
 @dataclass(frozen=True)
 class Dm1Message:
-    """A fully decoded DM1 message from one source address."""
+    """A fully decoded DM1 (Active DTCs) message from one source address."""
+
+    source_address: int
+    lamp_status: LampStatus
+    dtcs: tuple[Dtc, ...]
+
+
+@dataclass(frozen=True)
+class Dm2Message:
+    """A fully decoded DM2 (Previously Active DTCs) message from one source address."""
 
     source_address: int
     lamp_status: LampStatus
@@ -101,8 +114,8 @@ def _decode_dtc(record: bytes) -> Dtc | None:
     return Dtc(spn=spn, fmi=fmi, occurrence_count=occurrence_count, spn_conversion_method=spn_conversion_method)
 
 
-def decode_dm1_payload(source_address: int, payload: bytes) -> Dm1Message | None:
-    """Decodes a complete DM1 payload (already reassembled, if it arrived via BAM).
+def _decode_dm_payload(payload: bytes) -> tuple[LampStatus, tuple[Dtc, ...]] | None:
+    """Decodes a complete DM1/DM2 payload (already reassembled, if it arrived via BAM).
 
     Returns `None` if `payload` is too short to even contain lamp status.
     Stops at the first all-0xFF DTC record, since that means the rest of a
@@ -120,7 +133,27 @@ def decode_dm1_payload(source_address: int, payload: bytes) -> Dm1Message | None
             break
         dtcs.append(dtc)
 
-    return Dm1Message(source_address=source_address, lamp_status=lamp_status, dtcs=tuple(dtcs))
+    return lamp_status, tuple(dtcs)
+
+
+def decode_dm1_payload(source_address: int, payload: bytes) -> Dm1Message | None:
+    """Decodes a complete DM1 (Active DTCs) payload - see :func:`_decode_dm_payload`."""
+    decoded = _decode_dm_payload(payload)
+    if decoded is None:
+        return None
+
+    lamp_status, dtcs = decoded
+    return Dm1Message(source_address=source_address, lamp_status=lamp_status, dtcs=dtcs)
+
+
+def decode_dm2_payload(source_address: int, payload: bytes) -> Dm2Message | None:
+    """Decodes a complete DM2 (Previously Active DTCs) payload - see :func:`_decode_dm_payload`."""
+    decoded = _decode_dm_payload(payload)
+    if decoded is None:
+        return None
+
+    lamp_status, dtcs = decoded
+    return Dm2Message(source_address=source_address, lamp_status=lamp_status, dtcs=dtcs)
 
 
 def _load_int_name_csv(path: str | Path) -> dict[int, str]:
@@ -174,26 +207,29 @@ class _PendingBam:
     buffer: bytearray
 
 
-class Dm1TransportDecoder:
-    """Reassembles DM1 messages from raw frames, tracked per source address.
+class _DmTransportDecoder:
+    """Reassembles DM1/DM2-shaped messages from raw frames, tracked per source address.
 
     Feed it every received extended-id frame via :meth:`feed`. It returns a
-    decoded :class:`Dm1Message` as soon as one is complete: immediately for
-    a single-frame DM1 (an ECU reporting 0-1 DTCs), or once a full BAM
+    decoded message as soon as one is complete: immediately for a
+    single-frame message (an ECU reporting 0-1 DTCs), or once a full BAM
     transport-protocol sequence - a TP.CM announcing the transfer, followed
     by one TP.DT per 7-byte chunk - has been reassembled for an ECU
-    reporting more.
+    reporting more. `message_pgn`/`decode` select which of DM1 or DM2 this
+    instance reassembles - see :class:`Dm1TransportDecoder`/:class:`Dm2TransportDecoder`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, message_pgn: int, decode) -> None:
+        self._message_pgn = message_pgn
+        self._decode = decode
         self._pending: dict[int, _PendingBam] = {}
 
-    def feed(self, frame_id: int, data: bytes) -> Dm1Message | None:
-        """Processes one extended-id frame, returning a decoded DM1 message if it just completed one."""
+    def feed(self, frame_id: int, data: bytes):
+        """Processes one extended-id frame, returning a decoded message if it just completed one."""
         pdu = j1939.pdu_from_can_id(frame_id)
 
-        if pdu.pgn == DM1_PGN:
-            return decode_dm1_payload(pdu.sa, data)
+        if pdu.pgn == self._message_pgn:
+            return self._decode(pdu.sa, data)
         if pdu.pgn == _TP_CM_PGN:
             self._handle_tp_cm(pdu.sa, data)
             return None
@@ -206,10 +242,10 @@ class Dm1TransportDecoder:
             return
 
         transported_pgn = data[5] | (data[6] << 8) | (data[7] << 16)
-        if transported_pgn != DM1_PGN:
-            # A BAM for something other than DM1 - drop any stale DM1
-            # reassembly for this address rather than risk a stray TP.DT
-            # from this new transfer getting appended to it.
+        if transported_pgn != self._message_pgn:
+            # A BAM for something other than this decoder's message - drop
+            # any stale reassembly for this address rather than risk a
+            # stray TP.DT from this new transfer getting appended to it.
             self._pending.pop(source_address, None)
             return
 
@@ -219,7 +255,7 @@ class Dm1TransportDecoder:
             total_size=total_size, packet_count=packet_count, next_sequence=1, buffer=bytearray()
         )
 
-    def _handle_tp_dt(self, source_address: int, data: bytes) -> Dm1Message | None:
+    def _handle_tp_dt(self, source_address: int, data: bytes):
         pending = self._pending.get(source_address)
         if pending is None or len(data) < 1:
             return None
@@ -238,4 +274,18 @@ class Dm1TransportDecoder:
             return None
 
         del self._pending[source_address]
-        return decode_dm1_payload(source_address, bytes(pending.buffer[:pending.total_size]))
+        return self._decode(source_address, bytes(pending.buffer[:pending.total_size]))
+
+
+class Dm1TransportDecoder(_DmTransportDecoder):
+    """Reassembles DM1 (Active DTCs) messages from raw frames - see :class:`_DmTransportDecoder`."""
+
+    def __init__(self) -> None:
+        super().__init__(DM1_PGN, decode_dm1_payload)
+
+
+class Dm2TransportDecoder(_DmTransportDecoder):
+    """Reassembles DM2 (Previously Active DTCs) messages from raw frames - see :class:`_DmTransportDecoder`."""
+
+    def __init__(self) -> None:
+        super().__init__(DM2_PGN, decode_dm2_payload)

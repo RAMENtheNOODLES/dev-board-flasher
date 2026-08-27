@@ -6,7 +6,7 @@ from PySide6.QtCore import QModelIndex, Qt, QTimer
 from PySide6.QtGui import QPen, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QAbstractItemView, QStyledItemDelegate, QTreeView, QWidget
 
-from tools.j1939_dm1 import Dm1Message, Dtc
+from tools.j1939_dm1 import Dm1Message, Dm2Message, Dtc
 
 # VALUE/UNIT (columns 7-8) are left unlabeled in the real header since they're
 # meaningless for a message row - only its signal/DM1 children use them. Each
@@ -17,14 +17,17 @@ _DIRECTION_COLUMN = 1
 _VALUE_COLUMN = 7
 _UNIT_COLUMN = 8
 
-# DM1 rows are keyed into the same dict as real message ids (see
+# DM1/DM2 rows are keyed into the same dict as real message ids (see
 # CanLogging.nodes), but a raw frame id never exceeds 29 bits (0x1FFFFFFF),
 # so OR-ing a source address in above that range guarantees no collision -
-# DM1 has no single frame id of its own to key off of, since it's identified
-# by source address alone and is often reassembled from several frames.
+# neither has a single frame id of its own to key off of, since each is
+# identified by source address alone and is often reassembled from several
+# frames. DM1 and DM2 each get their own bit so the same source address
+# never collides between the two.
 _DM1_PSEUDO_ID_BASE = 1 << 29
+_DM2_PSEUDO_ID_BASE = 1 << 30
 
-_DM1_LAMPS = (
+_DM_LAMPS = (
 	("malfunction_indicator", "Malfunction Indicator Lamp"),
 	("red_stop", "Red Stop Lamp"),
 	("amber_warning", "Amber Warning Lamp"),
@@ -75,7 +78,7 @@ class CanLogging(QTreeView):
 		# Optional SPN/FMI -> human-readable name lookups, set via
 		# set_spn_names()/set_fmi_names() from user-loaded CSVs. Unknown
 		# codes (the default, with no lookup loaded at all) just show their
-		# bare number - see _populate_dm1_children().
+		# bare number - see _populate_dm_children().
 		self.spn_names: dict[int, str] = {}
 		self.fmi_names: dict[int, str] = {}
 		self.logger = logging.getLogger(__name__)
@@ -125,7 +128,7 @@ class CanLogging(QTreeView):
 		self.populated_children = set()
 
 		for msg_id, (msg_name, _) in dbc_data.items():
-			new_node = QStandardItem(msg_name)
+			new_node = QStandardItem(f"0x{msg_id:X} - {msg_name}")
 			self.nodes[msg_id] = new_node
 			self.root_node.appendRow(new_node)
 			self.setRowHidden(new_node.row(), QModelIndex(), True)
@@ -233,21 +236,46 @@ class CanLogging(QTreeView):
 
 		Called from :meth:`can_viewer.CANViewer._on_frame_received` alongside
 		(not instead of) :meth:`update_tree`, whenever a frame just completed
-		a DM1 message - see ``tools.can.CAN.feed_dm1``. Unlike a DBC message,
-		DM1 isn't keyed by a single frame id (it's identified by source
-		address alone, and is often reassembled from several transport-
-		protocol frames rather than one), so DLC/DATA don't apply to its row.
-		Its DTC list can also grow or shrink between messages, so its
-		children are rebuilt from scratch every update rather than matched/
-		reused like a DBC message's fixed signal list.
+		a DM1 message - see ``tools.can.CAN.feed_dm1``. See :meth:`_update_dm`
+		for the shared keying/rebuild details.
+		"""
+		self._update_dm(
+			dm1, channel, timestamp,
+			pseudo_id_base=_DM1_PSEUDO_ID_BASE, label="DM1", empty_dtcs_text="No active DTCs",
+		)
+
+	def update_dm2(self, dm2: Dm2Message, channel: int, timestamp: int | None) -> None:
+		"""Updates (or creates) the tree row for a reassembled J1939 DM2 (Previously Active DTCs) message.
+
+		Mirrors :meth:`update_dm1` - see ``tools.can.CAN.feed_dm2`` and
+		:meth:`_update_dm` for the shared reassembly/keying details.
+		"""
+		self._update_dm(
+			dm2, channel, timestamp,
+			pseudo_id_base=_DM2_PSEUDO_ID_BASE, label="DM2", empty_dtcs_text="No previously active DTCs",
+		)
+
+	def _update_dm(
+		self, dm: Dm1Message | Dm2Message, channel: int, timestamp: int | None,
+		*, pseudo_id_base: int, label: str, empty_dtcs_text: str,
+	) -> None:
+		"""Shared implementation behind :meth:`update_dm1`/:meth:`update_dm2`.
+
+		Unlike a DBC message, DM1/DM2 aren't keyed by a single frame id
+		(each is identified by source address alone, and is often
+		reassembled from several transport-protocol frames rather than
+		one), so DLC/DATA don't apply to their rows. Their DTC list can
+		also grow or shrink between messages, so children are rebuilt from
+		scratch every update rather than matched/reused like a DBC
+		message's fixed signal list.
 		"""
 		if self.root_node is None:
 			self.root_node = self.mainModel.invisibleRootItem()
 
-		pseudo_id = _DM1_PSEUDO_ID_BASE | dm1.source_address
+		pseudo_id = pseudo_id_base | dm.source_address
 		node = self.nodes.get(pseudo_id)
 		if node is None:
-			node = QStandardItem(f"J1939 DM1 - SA 0x{dm1.source_address:02X}")
+			node = QStandardItem(f"J1939 {label} - SA 0x{dm.source_address:02X}")
 			self.root_node.insertRow(self.unknown_count, node)
 			self.unknown_count += 1
 			self.nodes[pseudo_id] = node
@@ -259,34 +287,35 @@ class CanLogging(QTreeView):
 
 		row = node.row()
 		self.setRowHidden(row, QModelIndex(), False)
-		# DM1 is only ever decoded from received traffic - this app never
-		# transmits it - so unlike update_tree() there's no direction to pick.
+		# DM1/DM2 are only ever decoded from received traffic - this app
+		# never transmits them - so unlike update_tree() there's no
+		# direction to pick.
 		self.mainModel.setItem(row, _DIRECTION_COLUMN, QStandardItem("RX"))
 		self.mainModel.setItem(row, 2, QStandardItem(str(channel)))
 		self.mainModel.setItem(row, 5, QStandardItem("" if timestamp is None else f"{timestamp} ms"))
 		self.mainModel.setItem(row, 6, QStandardItem(delta))
 
 		node.removeRows(0, node.rowCount())
-		self._populate_dm1_children(node, dm1)
+		self._populate_dm_children(node, dm, empty_dtcs_text)
 
 		if not self._resize_timer.isActive():
 			self._resize_timer.start()
 
-	def _populate_dm1_children(self, node: QStandardItem, dm1: Dm1Message) -> None:
-		"""Adds a DM1 node's lamp-status rows and, if any are active, one row per DTC."""
+	def _populate_dm_children(self, node: QStandardItem, dm: Dm1Message | Dm2Message, empty_dtcs_text: str) -> None:
+		"""Adds a DM1/DM2 node's lamp-status rows and, if any are present, one row per DTC."""
 		self._append_header_row(node, "STATUS", "FLASH")
-		for attr, label in _DM1_LAMPS:
-			lamp = getattr(dm1.lamp_status, attr)
+		for attr, label in _DM_LAMPS:
+			lamp = getattr(dm.lamp_status, attr)
 			node.appendRow(QStandardItem(label))
 			node.setChild(node.rowCount() - 1, _VALUE_COLUMN, QStandardItem(lamp.status))
 			node.setChild(node.rowCount() - 1, _UNIT_COLUMN, QStandardItem(lamp.flash))
 
-		if not dm1.dtcs:
-			node.appendRow(QStandardItem("No active DTCs"))
+		if not dm.dtcs:
+			node.appendRow(QStandardItem(empty_dtcs_text))
 			return
 
 		self._append_header_row(node, "OCCURRENCES", "CONV. METHOD")
-		for dtc in dm1.dtcs:
+		for dtc in dm.dtcs:
 			node.appendRow(QStandardItem(self._dtc_label(dtc)))
 			node.setChild(node.rowCount() - 1, _VALUE_COLUMN, QStandardItem(str(dtc.occurrence_count)))
 			node.setChild(node.rowCount() - 1, _UNIT_COLUMN, QStandardItem(str(dtc.spn_conversion_method)))

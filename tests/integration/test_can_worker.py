@@ -219,6 +219,68 @@ def test_run_does_not_emit_frame_sent_when_a_queued_send_raises(qapp):
 	assert not any(event[0] == "frame_sent" for event in events)
 
 
+def test_run_only_emits_error_once_for_a_message_that_keeps_failing_to_send(qapp):
+	"""A message stuck failing every retry (e.g. TxScheduler resending with nothing on the bus to ACK
+	it - see CAN.send/send_message) shouldn't flood `error` (and its QMessageBox.critical popup) once
+	per retry."""
+	class _RaisingSendCan(_FakeCan):
+		def send_message(self, name, **signal_values):
+			raise RuntimeError("bad signal value")
+
+	fake_can = _RaisingSendCan(frames=["f1", "f2", "f3"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+
+	# Simulates TxScheduler re-enqueuing the same message on every loop
+	# iteration, the way its periodic QTimer would across several ticks.
+	original_receive = fake_can.receive
+
+	def receive_and_reenqueue(timeout):
+		worker.enqueue_send("Msg1", {"Sig": 1.0})
+		return original_receive(timeout)
+
+	fake_can.receive = receive_and_reenqueue
+	events = _collect_events(worker)
+
+	worker.run()
+
+	assert [event for event in events if event[0] == "error"] == [("error", "bad signal value")]
+
+
+def test_run_re_emits_error_after_a_send_recovers_and_then_fails_again(qapp):
+	class _FlakySendCan(_FakeCan):
+		def __init__(self, *args, **kwargs):
+			super().__init__(*args, **kwargs)
+			self._should_fail = True
+
+		def send_message(self, name, **signal_values):
+			should_fail, self._should_fail = self._should_fail, not self._should_fail
+			if should_fail:
+				raise RuntimeError("bad signal value")
+			return f"frame-for-{name}"
+
+	fake_can = _FlakySendCan(frames=["f1", "f2"])
+	worker = CanWorker("can-task", threading.Event(), fake_can)
+	worker.enqueue_send("Msg1", {"Sig": 1.0})
+
+	original_receive = fake_can.receive
+
+	def receive_and_reenqueue(timeout):
+		worker.enqueue_send("Msg1", {"Sig": 1.0})
+		return original_receive(timeout)
+
+	fake_can.receive = receive_and_reenqueue
+	events = _collect_events(worker)
+
+	worker.run()
+
+	# fail, succeed (clears the dedupe flag), fail again - the second
+	# failure should surface since the send recovered in between.
+	assert [event[0] for event in events if event[0] in ("error", "frame_sent")] == [
+		"error", "frame_sent", "error",
+	]
+
+
 def test_run_emits_an_error_and_keeps_running_when_a_queued_send_raises(qapp):
 	class _RaisingSendCan(_FakeCan):
 		def send_message(self, name, **signal_values):

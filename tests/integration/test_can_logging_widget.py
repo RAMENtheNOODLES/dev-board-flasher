@@ -3,7 +3,7 @@ from canlib.frame import Frame
 from PySide6.QtCore import QModelIndex
 
 from can_logging import CanLogging
-from tools.j1939_dm1 import Dm1Message, Dtc, Lamp, LampStatus
+from tools.j1939_dm1 import Dm1Message, Dm2Message, Dtc, Lamp, LampStatus
 
 pytestmark = pytest.mark.integration
 
@@ -15,6 +15,15 @@ def _make_frame(msg_id, timestamp=1000):
 def _make_dm1(source_address=0x17, dtcs=()):
 	off = Lamp(status="Off", flash="Slow Flash")
 	return Dm1Message(
+		source_address=source_address,
+		lamp_status=LampStatus(malfunction_indicator=off, red_stop=off, amber_warning=off, protect=off),
+		dtcs=tuple(dtcs),
+	)
+
+
+def _make_dm2(source_address=0x17, dtcs=()):
+	off = Lamp(status="Off", flash="Slow Flash")
+	return Dm2Message(
 		source_address=source_address,
 		lamp_status=LampStatus(malfunction_indicator=off, red_stop=off, amber_warning=off, protect=off),
 		dtcs=tuple(dtcs),
@@ -36,6 +45,15 @@ def test_populate_tree_creates_hidden_childless_rows_for_each_dbc_message(qapp):
 		# built lazily in update_tree(), on first receipt.
 		assert node.rowCount() == 0
 		assert view.isRowHidden(node.row(), QModelIndex())
+
+
+def test_populate_tree_labels_dbc_known_rows_with_id_and_name(qapp):
+	view = CanLogging(None)
+
+	view.populate_tree({0x100: ("EngineData", [])})
+
+	node = view.nodes[0x100]
+	assert node.text() == "0x100 - EngineData"
 
 
 def test_update_tree_unhides_and_builds_children_on_first_receipt(qapp):
@@ -229,3 +247,38 @@ def test_update_dm1_always_shows_rx_direction(qapp):
 
 	row = view.nodes[(1 << 29) | 0x17].row()
 	assert view.mainModel.item(row, 1).text() == "RX"
+
+
+def test_update_dm2_creates_a_row_with_lamp_and_dtc_children(qapp):
+	view = CanLogging(None)
+	dm2 = _make_dm2(source_address=0x17, dtcs=[Dtc(spn=1234, fmi=3, occurrence_count=5, spn_conversion_method=1)])
+
+	view.update_dm2(dm2, channel=1, timestamp=1000)
+
+	node = view.nodes[(1 << 30) | 0x17]
+	assert node.text() == "J1939 DM2 - SA 0x17"
+	assert view.isRowHidden(node.row(), QModelIndex()) is False
+	dtc_row = node.child(6, 0)
+	assert dtc_row.text() == "SPN 1234 FMI 3"
+
+
+def test_update_dm2_shows_no_previously_active_dtcs_when_there_are_none(qapp):
+	view = CanLogging(None)
+
+	view.update_dm2(_make_dm2(dtcs=[]), channel=0, timestamp=1000)
+
+	node = view.nodes[(1 << 30) | 0x17]
+	assert node.child(5, 0).text() == "No previously active DTCs"
+
+
+def test_update_dm1_and_update_dm2_dont_collide_for_the_same_source_address(qapp):
+	view = CanLogging(None)
+
+	view.update_dm1(_make_dm1(source_address=0x17, dtcs=[]), channel=0, timestamp=1000)
+	view.update_dm2(_make_dm2(source_address=0x17, dtcs=[]), channel=0, timestamp=1000)
+
+	dm1_node = view.nodes[(1 << 29) | 0x17]
+	dm2_node = view.nodes[(1 << 30) | 0x17]
+	assert dm1_node is not dm2_node
+	assert dm1_node.text() == "J1939 DM1 - SA 0x17"
+	assert dm2_node.text() == "J1939 DM2 - SA 0x17"
