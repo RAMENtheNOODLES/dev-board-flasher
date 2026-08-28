@@ -179,7 +179,11 @@ class CAN:
 			_canlib_can()
 
 			return True
-		except FileNotFoundError:
+		except (FileNotFoundError, SystemExit):
+			# canlib's dllLoader doesn't raise a catchable exception when the
+			# native libcanlib.so/canlib32.dll can't be loaded - it prints a
+			# message and calls exit(1), which raises SystemExit and would
+			# otherwise take down the whole app.
 			return False
 
 	@property

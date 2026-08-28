@@ -3,12 +3,17 @@ from __future__ import annotations
 import ctypes
 import logging
 import subprocess
+import sys
 import threading
 from ctypes import wintypes
 
 from PySide6.QtCore import QObject, Signal
 
-_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+# ctypes.WinDLL only exists on Windows. Guarded (rather than imported
+# eagerly) so this module can still be imported on other platforms -- e.g.
+# during test collection -- and only fails when a ConPtyProcess is actually
+# instantiated there (see ConPtyProcess.__init__).
+_kernel32 = ctypes.WinDLL("kernel32", use_last_error=True) if sys.platform == "win32" else None
 
 _PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016
 _EXTENDED_STARTUPINFO_PRESENT = 0x00080000
@@ -58,56 +63,57 @@ class _PROCESS_INFORMATION(ctypes.Structure):
 	]
 
 
-_kernel32.CreatePipe.argtypes = [
-	ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.c_void_p, wintypes.DWORD,
-]
-_kernel32.CreatePipe.restype = wintypes.BOOL
+if _kernel32 is not None:
+	_kernel32.CreatePipe.argtypes = [
+		ctypes.POINTER(wintypes.HANDLE), ctypes.POINTER(wintypes.HANDLE), ctypes.c_void_p, wintypes.DWORD,
+	]
+	_kernel32.CreatePipe.restype = wintypes.BOOL
 
-_kernel32.CreatePseudoConsole.argtypes = [
-	_COORD, wintypes.HANDLE, wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p),
-]
-_kernel32.CreatePseudoConsole.restype = ctypes.c_long
+	_kernel32.CreatePseudoConsole.argtypes = [
+		_COORD, wintypes.HANDLE, wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p),
+	]
+	_kernel32.CreatePseudoConsole.restype = ctypes.c_long
 
-_kernel32.ClosePseudoConsole.argtypes = [ctypes.c_void_p]
-_kernel32.ClosePseudoConsole.restype = None
+	_kernel32.ClosePseudoConsole.argtypes = [ctypes.c_void_p]
+	_kernel32.ClosePseudoConsole.restype = None
 
-_kernel32.InitializeProcThreadAttributeList.argtypes = [
-	ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.c_size_t),
-]
-_kernel32.InitializeProcThreadAttributeList.restype = wintypes.BOOL
+	_kernel32.InitializeProcThreadAttributeList.argtypes = [
+		ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.c_size_t),
+	]
+	_kernel32.InitializeProcThreadAttributeList.restype = wintypes.BOOL
 
-_kernel32.UpdateProcThreadAttribute.argtypes = [
-	ctypes.c_void_p, wintypes.DWORD, ctypes.c_size_t, ctypes.c_void_p,
-	ctypes.c_size_t, ctypes.c_void_p, ctypes.c_void_p,
-]
-_kernel32.UpdateProcThreadAttribute.restype = wintypes.BOOL
+	_kernel32.UpdateProcThreadAttribute.argtypes = [
+		ctypes.c_void_p, wintypes.DWORD, ctypes.c_size_t, ctypes.c_void_p,
+		ctypes.c_size_t, ctypes.c_void_p, ctypes.c_void_p,
+	]
+	_kernel32.UpdateProcThreadAttribute.restype = wintypes.BOOL
 
-_kernel32.DeleteProcThreadAttributeList.argtypes = [ctypes.c_void_p]
-_kernel32.DeleteProcThreadAttributeList.restype = None
+	_kernel32.DeleteProcThreadAttributeList.argtypes = [ctypes.c_void_p]
+	_kernel32.DeleteProcThreadAttributeList.restype = None
 
-_kernel32.CreateProcessW.argtypes = [
-	wintypes.LPCWSTR, wintypes.LPWSTR, ctypes.c_void_p, ctypes.c_void_p,
-	wintypes.BOOL, wintypes.DWORD, ctypes.c_void_p, wintypes.LPCWSTR,
-	ctypes.POINTER(_STARTUPINFOEXW), ctypes.POINTER(_PROCESS_INFORMATION),
-]
-_kernel32.CreateProcessW.restype = wintypes.BOOL
+	_kernel32.CreateProcessW.argtypes = [
+		wintypes.LPCWSTR, wintypes.LPWSTR, ctypes.c_void_p, ctypes.c_void_p,
+		wintypes.BOOL, wintypes.DWORD, ctypes.c_void_p, wintypes.LPCWSTR,
+		ctypes.POINTER(_STARTUPINFOEXW), ctypes.POINTER(_PROCESS_INFORMATION),
+	]
+	_kernel32.CreateProcessW.restype = wintypes.BOOL
 
-_kernel32.ReadFile.argtypes = [
-	wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p,
-]
-_kernel32.ReadFile.restype = wintypes.BOOL
+	_kernel32.ReadFile.argtypes = [
+		wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p,
+	]
+	_kernel32.ReadFile.restype = wintypes.BOOL
 
-_kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-_kernel32.CloseHandle.restype = wintypes.BOOL
+	_kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+	_kernel32.CloseHandle.restype = wintypes.BOOL
 
-_kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-_kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+	_kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+	_kernel32.GetExitCodeProcess.restype = wintypes.BOOL
 
-_kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
-_kernel32.TerminateProcess.restype = wintypes.BOOL
+	_kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+	_kernel32.TerminateProcess.restype = wintypes.BOOL
 
-_kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-_kernel32.WaitForSingleObject.restype = wintypes.DWORD
+	_kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+	_kernel32.WaitForSingleObject.restype = wintypes.DWORD
 
 
 class _StdOutBuffer:
@@ -153,6 +159,8 @@ class ConPtyProcess(QObject):
 
 	def __init__(self, parent: QObject | None = None) -> None:
 		super().__init__(parent)
+		if _kernel32 is None:
+			raise RuntimeError("ConPtyProcess is only supported on Windows.")
 		self.logger = logging.getLogger(__name__)
 		self._buffer = bytearray()
 		self._lock = threading.Lock()

@@ -90,7 +90,7 @@ class CANViewer(QMainWindow, Ui_CANViewer):
 			self.baudRateComboBox.setCurrentIndex(int(StoredSettings.CAN_BAUD_RATE.get(0)))
 			self.populate_devices()
 			self.populate_channels()
-		except FileNotFoundError:
+		except (FileNotFoundError, SystemExit):
 			self.logger.warning("CANLib drivers not installed. Visit https://kvaser.com/canlib-sdk/ to install them...")
 
 			QMessageBox.critical(

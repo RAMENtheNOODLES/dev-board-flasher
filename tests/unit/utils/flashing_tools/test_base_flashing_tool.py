@@ -1,10 +1,15 @@
+import sys
+
+import pytest
 from fixtures.toml_samples import write_tool_toml
 from PySide6.QtCore import QProcess
 from PySide6.QtGui import QColor, QFont, QTextCharFormat
 from PySide6.QtWidgets import QProgressBar, QTextEdit
 
 from utils.flashing_tools.base_flashing_tool import BaseFlashingTool
-from utils.flashing_tools.conpty_process import ConPtyProcess
+
+if sys.platform == "win32":
+	from utils.flashing_tools.conpty_process import ConPtyProcess
 
 
 def _make_tool(qapp, tmp_path, **toml_overrides) -> BaseFlashingTool:
@@ -31,6 +36,7 @@ def test_process_defaults_to_qprocess_when_use_pty_is_unset(qapp, tmp_path):
 	assert isinstance(t.process, QProcess)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="ConPtyProcess wraps the Windows ConPTY API")
 def test_process_is_conpty_when_use_pty_is_true(qapp, tmp_path):
 	t = _make_tool(qapp, tmp_path, use_pty=True)
 

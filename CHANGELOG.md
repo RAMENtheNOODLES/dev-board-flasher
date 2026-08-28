@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Error" popup instead of one per retry; it re-appears if the send recovers
   and then fails again.
 
+### Fixed
+
+- The app could crash on startup (or when opening **Tools > CAN**) on a
+  machine without the Kvaser CANlib drivers installed: the `canlib` package's
+  DLL loader doesn't raise a normal, catchable exception when it can't find
+  `libcanlib.so`/`canlib32.dll` - it exits the process directly. The
+  CANlib-availability checks now catch that case too, so the app degrades
+  gracefully (disabling **Tools > CAN**, or showing a "drivers not
+  installed" dialog) instead of crashing.
+
 ## [1.8.1] - 2026-08-25
 
 ### Added
