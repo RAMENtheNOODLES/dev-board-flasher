@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **CAN Viewer**: J1939 DM2 (Previously Active DTCs) messages are now parsed
   and shown in the message tree alongside DM1, including BAM-reassembled
   multi-DTC messages. Uses the same SPN/FMI name lookups as DM1.
+- Fixed menu bar when running the application on Linux (especially KDE Plasma).
 
 ### Changed
 

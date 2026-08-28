@@ -640,6 +640,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 			self.setFont(font)
 			self.menuBar().setFont(font)
 			self.menuBar().setStyleSheet(f"QMenuBar, QMenu {{ font: {font.pointSize()}pt '{font.family()}'; }}")
+			self.menuBar().setNativeMenuBar(False)
 
 	def configure_boards(self):
 		"""Builds the board cache (local + :data:`StoredSettings.REMOTE_CONFIGS`) and populates the board dropdown."""
